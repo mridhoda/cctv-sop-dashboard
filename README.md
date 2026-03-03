@@ -1,184 +1,88 @@
-# VisionGuard AI Dashboard
+# VisionGuard AI — cctv-sop
 
-> Sistem Monitoring Kepatuhan SOP Berbasis AI untuk Industri Manufaktur
+> Repositori Dashboard Web untuk Sistem Monitoring Kepatuhan SOP Berbasis AI
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.3-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Recharts](https://img.shields.io/badge/Recharts-2.10-22B5BF)](https://recharts.org/)
 
 ---
 
-## 📋 Deskripsi Proyek
+## 📋 Tentang Repositori Ini
 
-**VisionGuard AI** adalah dashboard monitoring real-time yang menggunakan teknologi Computer Vision dan AI untuk mendeteksi pelanggaran SOP (Standard Operating Procedure) di area kerja industri. Sistem ini terintegrasi dengan CCTV untuk secara otomatis mengidentifikasi:
+Repositori ini berisi **dashboard web** dari proyek **VisionGuard AI** — sistem deteksi kepatuhan SOP berbasis CCTV yang menggunakan YOLOv8 dan Face Recognition (V2_Project).
 
-- ✅ Penggunaan helm pelindung
-- ✅ Penggunaan sepatu safety
-- ✅ Kelengkapan seragam kerja
-- ✅ Penggunaan ID Card
-- ✅ Penggunaan masker (jika diperlukan)
+Dashboard ini dibangun dengan React + Vite + TailwindCSS dan dirancang untuk terhubung ke backend Flask + SocketIO yang berjalan di `http://localhost:5001`.
 
 ---
 
-## ✨ Fitur Utama
+## 📁 Struktur Repositori
 
-### 🔐 Autentikasi
-- Login page dengan form authentication
-- Role-based access (Ops Manager)
-
-### 📊 Dashboard Operasional
-| Komponen | Deskripsi |
-|----------|-----------|
-| **Metric Cards** | Total deteksi, jumlah insiden, tingkat kepatuhan |
-| **Tabel Insiden** | Daftar pelanggaran real-time dengan detail |
-| **Pie Chart** | Visualisasi persentase kepatuhan |
-| **Status CCTV** | Monitoring online/offline kamera |
-
-### 🎛️ Navigasi
-- Sidebar menu: Dashboard, Live Monitoring, Riwayat Insiden
-- Header dengan search, notifikasi, dan profil user
-
-### 📱 Responsive Design
-- Desktop-first dengan dukungan mobile
-- Tailwind CSS untuk styling konsisten
+```
+cctv-sop/
+├── dashboard/               # Aplikasi web React (Vite)
+│   ├── plan/
+│   │   └── ANALISIS_KEBUTUHAN.md   # Gap analysis & roadmap integrasi
+│   ├── src/
+│   │   ├── App.jsx                  # Root component + routing + sidebar
+│   │   ├── LandingPage.jsx          # Landing/marketing page
+│   │   └── pages/
+│   │       ├── Monitoring.jsx       # Live stream + engine control
+│   │       ├── History.jsx          # Riwayat insiden
+│   │       ├── Identities.jsx       # Manajemen identitas staff
+│   │       ├── Reports.jsx          # Laporan & foto bukti
+│   │       └── Settings.jsx         # Konfigurasi sistem
+│   ├── package.json
+│   └── README.md                    # Dokumentasi lengkap dashboard
+└── README.md                        # File ini
+```
 
 ---
 
-## 🚀 Cara Menjalankan
-
-### Prerequisites
-- Node.js >= 16.x
-- npm atau yarn
-
-### Install & Run
+## 🚀 Quick Start
 
 ```bash
-# Clone repository
-git clone <repo-url>
 cd dashboard
-
-# Install dependencies
 npm install
-
-# Jalankan development server
 npm run dev
 ```
 
-Aplikasi akan berjalan di `http://localhost:5173`
+Akses di `http://localhost:5173`
 
-### Build untuk Production
-
-```bash
-npm run build
-```
-
-Output akan ada di folder `dist/`
+> Untuk dokumentasi lengkap, lihat [`dashboard/README.md`](./dashboard/README.md)
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Halaman yang Tersedia
 
-| Kategori | Teknologi |
-|----------|-----------|
-| **Framework** | React 18 |
-| **Build Tool** | Vite 5 |
-| **Styling** | Tailwind CSS 3.3 |
-| **Charts** | Recharts |
-| **Icons** | Lucide React |
-| **Bundler** | Rollup (via Vite) |
-
----
-
-## 📁 Struktur Proyek
-
-```
-dashboard/
-├── public/                 # Static assets
-├── src/
-│   ├── App.jsx            # Main component
-│   ├── main.jsx           # Entry point
-│   └── index.css          # Tailwind styles
-├── .gitignore             # Git ignore rules
-├── index.html             # HTML template
-├── package.json           # Dependencies
-├── postcss.config.js      # PostCSS config
-├── tailwind.config.js     # Tailwind config
-└── vite.config.js         # Vite config
-```
+| Halaman | Deskripsi |
+|---------|-----------|
+| **Landing Page** | Marketing page VisionGuard AI |
+| **Dashboard** | Metric cards, pie chart, tabel insiden, status CCTV |
+| **Live Monitoring** | MJPEG stream, engine control (Start/Stop/Restart) |
+| **Riwayat Insiden** | Tabel insiden dengan filter, search, dan pagination |
+| **Identitas Staff** | CRUD identitas + upload foto + face encoding |
+| **Laporan & Bukti** | Galeri foto bukti + lightbox + export CSV |
+| **Pengaturan** | Form konfigurasi kamera, AI threshold, server, Telegram |
 
 ---
 
-## 📸 Screenshot
+## 🔌 Backend Integration
 
-### Login Page
-Form login dengan branding VisionGuard AI
+Dashboard ini dirancang untuk terhubung ke **V2_Project** backend:
 
-### Dashboard
-- **Metric Cards**: Ringkasan data deteksi 24 jam
-- **Tabel Insiden**: List pelanggaran dengan filter dan sorting
-- **Pie Chart**: Visualisasi 85% patuh vs 15% tidak patuh
-- **CCTV Status**: 4 kamera monitoring (3 online, 1 offline)
+- **REST API**: `http://localhost:5001/api/...`
+- **WebSocket**: Socket.IO events (`frame_update`, `detection_event`, `stats_update`, `engine_status`)
 
-### Detail Modal
-Popup detail insiden dengan:
-- Preview rekaman CCTV
-- Waktu dan lokasi kejadian
-- Analisis AI otomatis
-- Tombol validasi/abaikan
-
----
-
-## ⚠️ Catatan Penting
-
-### Mock Data
-Saat ini menggunakan mock data untuk:
-- `MOCK_INCIDENTS` - Data pelanggaran sample
-- `MOCK_CCTV` - Status kamera sample
-- Authentication - Langsung set state tanpa backend
-
-### Integrasi Backend (TODO)
-Untuk production, perlu integrasi dengan:
-- [ ] API endpoint autentikasi
-- [ ] WebSocket/Fetch untuk data real-time
-- [ ] Endpoint CCTV stream
-- [ ] Database untuk menyimpan history
-
----
-
-## 🤝 Kontribusi
-
-1. Fork repository
-2. Buat branch fitur (`git checkout -b feature/nama-fitur`)
-3. Commit perubahan (`git commit -m 'feat: tambah fitur X'`)
-4. Push ke branch (`git push origin feature/nama-fitur`)
-5. Buat Pull Request
-
----
-
-## 📝 Changelog
-
-### v1.0.0 - Initial Release
-- ✅ Login page
-- ✅ Dashboard dengan metric cards
-- ✅ Tabel insiden dengan modal detail
-- ✅ Pie chart kepatuhan
-- ✅ Status CCTV monitoring
-- ✅ Responsive design
-
----
-
-## 📄 License
-
-MIT License - feel free to use and modify.
+Lihat [`dashboard/plan/ANALISIS_KEBUTUHAN.md`](./dashboard/plan/ANALISIS_KEBUTUHAN.md) untuk analisis lengkap gap dan roadmap integrasi.
 
 ---
 
 ## 👤 Author
 
-**Muhammad Ridho Darmawan* - IT Core Developer Foodinesia
+**Muhammad Ridho Darmawan** — IT Core Developer Foodinesia  
 *Built with ❤️ for industrial safety*
 
 ---
 
-> **VisionGuard AI** - *Meningkatkan keselamatan kerja melalui teknologi AI*
+> **VisionGuard AI** — *Meningkatkan keselamatan kerja melalui teknologi AI*
