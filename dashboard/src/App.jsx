@@ -22,6 +22,8 @@ import {
   History,
   Settings as SettingsIcon,
   Monitor,
+  Lock,
+  KeyRound,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import LandingPage from './LandingPage';
@@ -32,6 +34,30 @@ import Reports from './pages/Reports';
 import SettingsPage from './pages/Settings';
 
 // Mock Data
+const MOCK_USERS = [
+  {
+    username: "superadmin",
+    password: "admin123",
+    name: "Super Admin",
+    role: "superadmin",
+    roleLabel: "Super Administrator",
+    allowedTabs: ["home", "monitoring", "history", "identities", "reports", "settings"],
+  },
+  {
+    username: "viewer",
+    password: "viewer123",
+    name: "Viewer",
+    role: "viewer",
+    roleLabel: "Viewer",
+    allowedTabs: ["home", "monitoring"],
+  },
+];
+
+const ROLE_PERMISSIONS = {
+  superadmin: ["home", "monitoring", "history", "identities", "reports", "settings"],
+  viewer: ["home", "monitoring"],
+};
+
 const MOCK_INCIDENTS = [
   { id: 1, time: '10:45:22', location: 'Area Produksi A', type: 'Helm Tidak Dipakai', status: 'Non-Compliance', detail: 'Pekerja terdeteksi tidak mengenakan helm pelindung di zona wajib.' },
   { id: 2, time: '10:30:15', location: 'Gudang Logistik', type: 'Baju Tidak Dimasukkan', status: 'Non-Compliance', detail: 'Seragam tidak rapi sesuai standar SOP poin 2.1.' },
@@ -54,12 +80,43 @@ const PIE_DATA = [
 
 const App = () => {
   const [showLanding, setShowLanding] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
 
+  // Guard: jika tab tidak diizinkan untuk role, redirect ke home
+  useEffect(() => {
+    if (currentUser && !currentUser.allowedTabs.includes(activeTab)) {
+      setActiveTab('home');
+    }
+  }, [currentUser, activeTab]);
   // Login View Component
-  const LoginView = () => (
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const LoginView = () => {
+    const handleLogin = (e) => {
+      e.preventDefault();
+      const found = MOCK_USERS.find(
+        (u) => u.username === loginUsername && u.password === loginPassword
+      );
+      if (found) {
+        setCurrentUser(found);
+        setLoginError('');
+        setActiveTab('home');
+      } else {
+        setLoginError('Username atau password salah');
+      }
+    };
+
+    const fillHint = (u) => {
+      setLoginUsername(u.username);
+      setLoginPassword(u.password);
+      setLoginError('');
+    };
+
+    return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
         <div className="flex flex-col items-center mb-8">
@@ -69,33 +126,71 @@ const App = () => {
           <h1 className="text-2xl font-bold text-slate-900">VisionGuard AI</h1>
           <p className="text-slate-500 text-sm">Masuk untuk memantau kepatuhan SOP</p>
         </div>
-        
-        <form onSubmit={(e) => { e.preventDefault(); setIsLoggedIn(true); }} className="space-y-4">
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-            <input 
-              type="text" 
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none transition" 
-              placeholder="admin.operational"
-              defaultValue="admin.operational"
+            <input
+              type="text"
+              required
+              value={loginUsername}
+              onChange={(e) => setLoginUsername(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none transition"
+              placeholder="Masukkan username"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none transition" 
-              placeholder="••••••••"
-              defaultValue="password123"
+            <input
+              type="password"
+              required
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none transition"
+              placeholder="Masukkan password"
             />
           </div>
+          {loginError && (
+            <p className="text-sm text-red-500 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+              {loginError}
+            </p>
+          )}
           <button className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition shadow-lg mt-4">
             Masuk Sekarang
           </button>
         </form>
+
+        <div className="mt-6 space-y-2">
+          <p className="text-xs text-slate-400 text-center font-medium uppercase tracking-wider">Akun Demo — Klik untuk isi otomatis</p>
+          <button
+            onClick={() => fillHint(MOCK_USERS[0])}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-blue-100 bg-blue-50 hover:border-blue-300 transition text-left"
+          >
+            <div className="bg-blue-500 p-2 rounded-lg text-white flex-shrink-0">
+              <ShieldCheck size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-blue-900">Super Administrator</p>
+              <p className="text-xs text-blue-500">superadmin / admin123 — Akses penuh semua fitur</p>
+            </div>
+          </button>
+          <button
+            onClick={() => fillHint(MOCK_USERS[1])}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-green-100 bg-green-50 hover:border-green-300 transition text-left"
+          >
+            <div className="bg-green-500 p-2 rounded-lg text-white flex-shrink-0">
+              <User size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-green-900">Viewer</p>
+              <p className="text-xs text-green-500">viewer / viewer123 — Dashboard & Monitoring saja</p>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );
+  };
 
   // Main Dashboard View Component
   const DashboardView = () => (
@@ -106,50 +201,87 @@ const App = () => {
           <ShieldCheck className="text-emerald-400" />
           <span className="font-bold text-lg text-white">VisionGuard AI</span>
         </div>
+
+        {/* User Info */}
+        <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-3">
+          <div className="bg-slate-700 p-2 rounded-full text-slate-300 flex-shrink-0">
+            <User size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{currentUser?.name}</p>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              currentUser?.role === 'superadmin'
+                ? 'bg-blue-500/20 text-blue-400'
+                : 'bg-green-500/20 text-green-400'
+            }`}>
+              {currentUser?.roleLabel}
+            </span>
+          </div>
+        </div>
+
         <nav className="flex-1 p-4 space-y-1">
           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-2 pb-1">Menu Utama</p>
-          <button 
-            onClick={() => setActiveTab('home')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'home' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <LayoutDashboard size={20} /> Dashboard
-          </button>
-          <button 
-            onClick={() => setActiveTab('monitoring')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'monitoring' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <Monitor size={20} /> Live Monitoring
-          </button>
-          <button 
-            onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'history' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <AlertTriangle size={20} /> Riwayat Insiden
-          </button>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">Manajemen</p>
-          <button 
-            onClick={() => setActiveTab('identities')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'identities' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <Users size={20} /> Identitas Staff
-          </button>
-          <button 
-            onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'reports' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <FileText size={20} /> Laporan & Bukti
-          </button>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">Sistem</p>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
-          >
-            <SettingsIcon size={20} /> Pengaturan
-          </button>
+          {currentUser?.allowedTabs.includes('home') && (
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'home' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+            >
+              <LayoutDashboard size={20} /> Dashboard
+            </button>
+          )}
+          {currentUser?.allowedTabs.includes('monitoring') && (
+            <button
+              onClick={() => setActiveTab('monitoring')}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'monitoring' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+            >
+              <Monitor size={20} /> Live Monitoring
+            </button>
+          )}
+          {currentUser?.allowedTabs.includes('history') && (
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'history' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+            >
+              <AlertTriangle size={20} /> Riwayat Insiden
+            </button>
+          )}
+
+          {currentUser?.allowedTabs.some(t => ['identities','reports'].includes(t)) && (
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">Manajemen</p>
+          )}
+          {currentUser?.allowedTabs.includes('identities') && (
+            <button
+              onClick={() => setActiveTab('identities')}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'identities' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+            >
+              <Users size={20} /> Identitas Staff
+            </button>
+          )}
+          {currentUser?.allowedTabs.includes('reports') && (
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'reports' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+            >
+              <FileText size={20} /> Laporan & Bukti
+            </button>
+          )}
+
+          {currentUser?.allowedTabs.includes('settings') && (
+            <>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">Sistem</p>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === 'settings' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800'}`}
+              >
+                <SettingsIcon size={20} /> Pengaturan
+              </button>
+            </>
+          )}
         </nav>
+
         <div className="p-4 border-t border-slate-800">
-          <button 
-            onClick={() => setIsLoggedIn(false)}
+          <button
+            onClick={() => { setCurrentUser(null); setActiveTab('home'); }}
             className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition"
           >
             <LogOut size={20} /> Keluar
@@ -178,8 +310,8 @@ const App = () => {
             </button>
             <div className="flex items-center gap-3 border-l border-slate-200 pl-6">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-slate-900 leading-none">Budi Santoso</p>
-                <p className="text-xs text-slate-500">Ops Manager</p>
+                <p className="text-sm font-semibold text-slate-900 leading-none">{currentUser?.name}</p>
+                <p className="text-xs text-slate-500">{currentUser?.roleLabel}</p>
               </div>
               <div className="bg-slate-200 p-2 rounded-full text-slate-600">
                 <User size={20} />
@@ -246,7 +378,7 @@ const App = () => {
                 <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="font-bold text-slate-900 text-lg">Daftar Insiden Terbaru</h3>
-                    <button onClick={() => setActiveTab('history')} className="text-sm text-slate-600 hover:text-slate-900 font-medium underline">Lihat Semua</button>
+                    {currentUser?.allowedTabs.includes('history') && (<button onClick={() => setActiveTab('history')} className="text-sm text-slate-600 hover:text-slate-900 font-medium underline">Lihat Semua</button>)}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -430,7 +562,7 @@ const App = () => {
     return <LandingPage onEnterApp={() => setShowLanding(false)} />;
   }
 
-  return isLoggedIn ? <DashboardView /> : <LoginView />;
+  return currentUser ? <DashboardView /> : <LoginView />;
 };
 
 export default App;
