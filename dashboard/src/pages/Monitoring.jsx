@@ -1,458 +1,900 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
-  Activity,
   Play,
   Square,
   RotateCcw,
+  Loader2,
   AlertTriangle,
-  CheckCircle,
-  Clock,
-  Maximize2,
-  ChevronLeft,
-  ChevronRight,
-  PanelRightClose,
-  PanelRightOpen,
   Sun,
   Moon,
-  Grid2x2,
-  Grid3x3,
-  LayoutGrid,
-  Wifi,
-  WifiOff,
-  Bell,
-  RefreshCw,
+  PanelRightClose,
+  PanelRightOpen,
+  Activity,
+  Eye,
+  ShieldCheck,
+  ShieldAlert,
+  Image,
+  Radio,
+  ChevronDown,
+  ChevronUp,
+  Pin,
+  Settings,
 } from "lucide-react";
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const MOCK_CAMERAS = [
-  { id: 1, name: "Entrance Gate A", location: "Main Entrance", online: true, hasAlert: false, lastAlert: null, alertTime: null, fps: 30, resolution: "1080p" },
-  { id: 2, name: "Parking Lot B", location: "North Wing", online: true, hasAlert: true, lastAlert: "Motion Detected", alertTime: "2 min ago", fps: 25, resolution: "720p" },
-  { id: 3, name: "Lobby Camera", location: "Building A", online: true, hasAlert: false, lastAlert: null, alertTime: null, fps: 30, resolution: "1080p" },
-  { id: 4, name: "Server Room", location: "Basement", online: false, hasAlert: false, lastAlert: "Connection Lost", alertTime: "1 hr ago", fps: 0, resolution: "1080p" },
-  { id: 5, name: "Corridor C2", location: "Floor 2", online: true, hasAlert: false, lastAlert: null, alertTime: null, fps: 28, resolution: "720p" },
-  { id: 6, name: "Emergency Exit", location: "South Wing", online: true, hasAlert: true, lastAlert: "Door Opened", alertTime: "5 min ago", fps: 30, resolution: "1080p" },
-  { id: 7, name: "Rooftop Cam", location: "Top Floor", online: true, hasAlert: false, lastAlert: null, alertTime: null, fps: 15, resolution: "4K" },
-  { id: 8, name: "Loading Bay", location: "Warehouse", online: false, hasAlert: false, lastAlert: "Signal Weak", alertTime: "3 hr ago", fps: 0, resolution: "720p" },
-];
+const API_BASE = "http://localhost:5001";
 
-const MOCK_LOGS = [
-  { id: 1, timestamp: "14:32:01", camera: "Parking Lot B", event: "Motion Detected", severity: "warning", cameraId: 2 },
-  { id: 2, timestamp: "14:28:45", camera: "Emergency Exit", event: "Door Opened", severity: "alert", cameraId: 6 },
-  { id: 3, timestamp: "14:15:30", camera: "Entrance Gate A", event: "Person Identified", severity: "info", cameraId: 1 },
-  { id: 4, timestamp: "13:59:12", camera: "Server Room", event: "Connection Lost", severity: "error", cameraId: 4 },
-  { id: 5, timestamp: "13:45:00", camera: "Lobby Camera", event: "System Started", severity: "info", cameraId: 3 },
-  { id: 6, timestamp: "13:30:55", camera: "Corridor C2", event: "Night Mode On", severity: "info", cameraId: 5 },
-  { id: 7, timestamp: "13:10:22", camera: "Rooftop Cam", event: "Wind Detected", severity: "warning", cameraId: 7 },
-];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const getSeverityStyle = (severity) => {
-  switch (severity) {
-    case "alert":  return { dot: "bg-red-500",    text: "text-red-400",    badge: "bg-red-500/10 text-red-400 border-red-500/20" };
-    case "error":  return { dot: "bg-red-400",    text: "text-red-400",    badge: "bg-red-400/10 text-red-400 border-red-400/20" };
-    case "warning":return { dot: "bg-amber-400",  text: "text-amber-400",  badge: "bg-amber-400/10 text-amber-400 border-amber-400/20" };
-    default:       return { dot: "bg-blue-400",   text: "text-blue-400",   badge: "bg-blue-400/10 text-blue-400 border-blue-400/20" };
-  }
+const SEVERITY_STYLES = {
+  alert: { dot: "bg-red-500", text: "text-red-400" },
+  warning: { dot: "bg-amber-400", text: "text-amber-500" },
+  info: { dot: "bg-sky-400", text: "text-sky-500" },
 };
 
-const getGridClass = (layout) => {
-  switch (layout) {
-    case "2x2": return "grid-cols-2";
-    case "3x3": return "grid-cols-3";
-    case "4x4": return "grid-cols-4";
-    default:    return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
-  }
+const MOCK_EVENTS = [
+  { id: 1, message: "Helmet missing detected", severity: "alert", timestamp: new Date(Date.now() - 1000 * 60 * 2) },
+  { id: 2, message: "Safety shoes compliant", severity: "info", timestamp: new Date(Date.now() - 1000 * 60 * 6) },
+  { id: 3, message: "Mask improperly worn", severity: "warning", timestamp: new Date(Date.now() - 1000 * 60 * 12) },
+  { id: 4, message: "Valid SOP compliance confirmed", severity: "info", timestamp: new Date(Date.now() - 1000 * 60 * 18) },
+];
+
+const formatTimestamp = (date) => {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return "--:--";
+  return value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+const getSeverityStyle = (severity) => SEVERITY_STYLES[severity] || SEVERITY_STYLES.info;
 
-/** Single camera tile used in both grid and theatre strip */
-function CameraTile({ camera, onClick, isSelected = false, compact = false }) {
-  const isOffline = !camera.online;
+function StreamViewer({
+  streamStatus,
+  onRetry,
+  resolution,
+  fps,
+  dark,
+  cameraName,
+  stats,
+  onSnapshot,
+}) {
+  const [streamKey, setStreamKey] = useState(0);
+  const [selectedResolution, setSelectedResolution] = useState("1080p (FHD)");
+  const [showResDropdown, setShowResDropdown] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [clockTime, setClockTime] = useState("");
+  const hasNotifiedLive = useRef(false);
+
+  const resolutions = ["480p (SD)", "720p (HD)", "1080p (FHD)", "1440p (QHD)"];
+
+  // Stable stream URL - only changes when streamKey changes (manual retry)
+  const streamSrc = useMemo(
+    () => `${API_BASE}/api/stream/video?k=${streamKey}`,
+    [streamKey]
+  );
+
+  // Live clock that updates every second independently of re-renders
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      setClockTime(
+        `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}, ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
+      );
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Reset the "notified live" flag whenever stream goes non-live
+  useEffect(() => {
+    if (streamStatus !== "live") {
+      hasNotifiedLive.current = false;
+    }
+  }, [streamStatus]);
+
+  const handleImageError = () => {
+    setIsImageLoaded(false);
+    hasNotifiedLive.current = false;
+    onRetry("error");
+  };
+
+  const handleImageLoad = () => {
+    setIsImageLoaded(true);
+    // Notify parent only once to transition to "live" — prevents re-render loop
+    if (!hasNotifiedLive.current) {
+      hasNotifiedLive.current = true;
+      onRetry("live");
+    }
+  };
+
+  const containerClass = dark ? "bg-slate-950" : "bg-slate-100";
+  const innerBg = dark ? "bg-gradient-to-b from-slate-800 to-slate-950" : "bg-gradient-to-b from-slate-700 to-slate-800";
+
+  // Preload image saat connecting untuk mencegah flicker
+  const showConnecting = streamStatus === "connecting";
+  const showError = streamStatus === "error";
+  const showOffline = streamStatus === "offline";
 
   return (
-    <div
-      onClick={() => onClick && onClick(camera)}
-      className={`
-        group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-200
-        ${isSelected
-          ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900"
-          : "hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-slate-900"
-        }
-        bg-slate-800 dark:bg-slate-800
-      `}
-    >
-      {/* Snapshot / Placeholder */}
-      <div className={`relative w-full ${compact ? "aspect-video" : "aspect-video"} bg-slate-900 flex items-center justify-center overflow-hidden`}>
-        {isOffline ? (
-          <div className="flex flex-col items-center gap-2 text-slate-600">
-            <WifiOff className={compact ? "w-5 h-5" : "w-8 h-8"} />
-            {!compact && <span className="text-xs">Offline</span>}
-          </div>
-        ) : (
-          <img
-            src={`https://picsum.photos/seed/cam${camera.id}/640/360`}
-            alt={camera.name}
-            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-          />
-        )}
+    <div className={`relative h-full w-full overflow-hidden rounded-2xl ${containerClass} group`}>
+      {/* Hidden image loader saat connecting - preload tapi UI tetap showing loader */}
+      {(showConnecting || (streamStatus === "live" && !isImageLoaded)) && (
+        <img
+          src={streamSrc}
+          alt=""
+          className="hidden"
+          onError={handleImageError}
+          onLoad={handleImageLoad}
+        />
+      )}
 
-        {/* Top-left: LIVE badge */}
-        {!isOffline && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            LIVE
-          </span>
-        )}
+      {/* Visible image hanya saat live dan sudah loaded */}
+      {streamStatus === "live" && isImageLoaded && (
+        <img
+          src={streamSrc}
+          alt="Live stream"
+          className="h-full w-full object-contain"
+          onError={handleImageError}
+          onLoad={handleImageLoad}
+        />
+      )}
 
-        {/* Top-right: Alert badge */}
-        {camera.hasAlert && (
-          <span className="absolute top-2 right-2 bg-amber-500/90 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
-            <AlertTriangle className="w-2.5 h-2.5" />
-            {!compact && "Alert"}
-          </span>
-        )}
-
-        {/* Bottom overlay: name + stats */}
-        {!compact && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
-            <p className="text-white text-xs font-medium truncate">{camera.name}</p>
-            <p className="text-slate-400 text-[10px] truncate">{camera.location}</p>
-          </div>
-        )}
-
-        {/* Expand icon on hover */}
-        {!compact && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="bg-black/60 rounded-full p-2">
-              <Maximize2 className="w-4 h-4 text-white" />
+      {/* Connecting Overlay - tampil di atas image dengan backdrop blur */}
+      {showConnecting && (
+        <div className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}>
+          <div className="flex flex-col items-center justify-center gap-4 text-white">
+            <p className="text-lg font-medium italic">{cameraName || "Camera"}</p>
+            <div className="w-20 h-20 rounded-full border-2 border-white/30 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-white/70" />
             </div>
+            <p className="text-sm text-white/60">Menghubungkan ke stream...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error/Offline Overlay */}
+      {(showError || showOffline) && !isImageLoaded && (
+        <div className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}>
+          <div className="flex flex-col items-center justify-center gap-4 text-white">
+            <p className="text-lg font-medium italic">{cameraName || "Camera"}</p>
+            <button
+              onClick={() => {
+                setIsImageLoaded(false);
+                hasNotifiedLive.current = false;
+                setStreamKey((k) => k + 1);
+                onRetry("connecting");
+              }}
+              className="w-20 h-20 rounded-full border-2 border-white/30 hover:border-white/60 flex items-center justify-center transition-colors group"
+            >
+              <Play className="w-8 h-8 text-white/70 group-hover:text-white group-hover:scale-110 transition-all ml-1" fill="currentColor" />
+            </button>
+            <p className="text-sm text-white/60">
+              {showError ? "Gagal memuat stream. Klik untuk mencoba lagi." : "Klik untuk memulai live streaming"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Live Badge - hanya tampil saat live dan loaded */}
+      {streamStatus === "live" && isImageLoaded && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-red-500/90 backdrop-blur-sm px-3 py-1.5 rounded-full z-20">
+          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          <span className="text-white text-xs font-bold tracking-wide">LIVE</span>
+        </div>
+      )}
+
+      {/* Timestamp - hanya tampil saat live dan loaded */}
+      {streamStatus === "live" && isImageLoaded && (
+        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 z-20">
+          <span className="text-amber-400 text-base font-mono font-medium">{clockTime}</span>
+        </div>
+      )}
+
+      {/* Stop Button - hanya tampil saat live dan loaded */}
+      {streamStatus === "live" && isImageLoaded && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
+          <button
+            onClick={() => {
+              setIsImageLoaded(false);
+              hasNotifiedLive.current = false;
+              onRetry("offline");
+            }}
+            className="flex items-center gap-2 bg-red-500/90 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+          >
+            <Square className="w-4 h-4" fill="currentColor" />
+            Hentikan Streaming
+          </button>
+        </div>
+      )}
+
+      {/* Snapshot Button - hanya tampil saat live dan loaded */}
+      {streamStatus === "live" && isImageLoaded && (
+        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+          <button
+            onClick={onSnapshot}
+            className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Image className="w-3.5 h-3.5" />
+            Snapshot
+          </button>
+        </div>
+      )}
+
+      {/* Resolution Selector - tampil di semua state */}
+      <div className="absolute bottom-6 right-6 z-30">
+        <button
+          onClick={() => setShowResDropdown(!showResDropdown)}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          {selectedResolution}
+          <ChevronDown className={`w-3 h-3 transition-transform ${showResDropdown ? "rotate-180" : ""}`} />
+        </button>
+        
+        {showResDropdown && (
+          <div className={`absolute bottom-full right-0 mb-1 rounded-lg shadow-lg overflow-hidden ${dark ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"}`}>
+            {resolutions.map((res) => (
+              <button
+                key={res}
+                onClick={() => { setSelectedResolution(res); setShowResDropdown(false); }}
+                className={`block w-full text-left px-3 py-2 text-xs ${dark ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"} ${selectedResolution === res ? (dark ? "bg-slate-700" : "bg-slate-100") : ""}`}
+              >
+                {res}
+              </button>
+            ))}
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Compact label below */}
-      {compact && (
-        <div className="px-2 py-1">
-          <p className="text-white text-[10px] font-medium truncate">{camera.name}</p>
+function MonitoringHeader({
+  dark,
+  connectionStatus,
+  engineStatus,
+  sidebarOpen,
+  onToggleTheme,
+  onToggleSidebar,
+}) {
+  const statusColors = {
+    online: "bg-emerald-500",
+    offline: "bg-red-500",
+    connecting: "bg-amber-400",
+  };
+
+  const engineColors = {
+    running: "bg-emerald-500",
+    stopped: "bg-slate-400",
+    error: "bg-red-500",
+  };
+
+  const headerBg = dark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
+  const textColor = dark ? "text-white" : "text-slate-900";
+  const subTextColor = dark ? "text-slate-400" : "text-slate-500";
+
+  return (
+    <header className={`flex items-center justify-between px-5 py-3 border-b ${headerBg}`}>
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${dark ? "bg-slate-800" : "bg-slate-100"}`}>
+          <Camera className="w-5 h-5 text-emerald-400" />
         </div>
+        <div>
+          <h1 className={`text-sm font-semibold ${textColor}`}>Live Monitoring</h1>
+          <div className="flex items-center gap-3 mt-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${statusColors[connectionStatus] || statusColors.connecting}`} />
+              <span className={`text-xs ${subTextColor} capitalize`}>{connectionStatus}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${engineColors[engineStatus] || engineColors.stopped} ${engineStatus === "running" ? "animate-pulse" : ""}`} />
+              <span className={`text-xs ${subTextColor} capitalize`}>{engineStatus}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleTheme}
+          className={`p-2 rounded-lg transition-colors ${dark ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
+        >
+          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+        <button
+          onClick={onToggleSidebar}
+          className={`p-2 rounded-lg transition-colors ${dark ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
+        >
+          {sidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function CollapsibleSection({ title, icon: Icon, children, defaultExpanded = false, pinned = false, onTogglePin, dark }) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const textColor = dark ? "text-slate-500" : "text-slate-400";
+  const iconColor = dark ? "text-slate-500" : "text-slate-400";
+
+  return (
+    <div className="w-full">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between py-2 group"
+      >
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className={`w-4 h-4 ${iconColor}`} />}
+          <h3 className={`text-sm font-semibold uppercase tracking-wider ${textColor}`}>
+            {title}
+          </h3>
+        </div>
+        <div className="flex items-center gap-1">
+          {onTogglePin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              className={`p-1 rounded transition-colors ${
+                pinned
+                  ? dark ? "text-emerald-400 bg-emerald-400/10" : "text-emerald-600 bg-emerald-100"
+                  : dark ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-600"
+              }`}
+              title={pinned ? "Unpin section" : "Pin section"}
+            >
+              <Pin className={`w-3 h-3 ${pinned ? "fill-current" : ""}`} />
+            </button>
+          )}
+          {isExpanded ? (
+            <ChevronUp className={`w-4 h-4 ${textColor}`} />
+          ) : (
+            <ChevronDown className={`w-4 h-4 ${textColor}`} />
+          )}
+        </div>
+      </button>
+      {isExpanded && <div className="mt-2">{children}</div>}
+    </div>
+  );
+}
+
+function CameraInfoCard({ cameraInfo, dark }) {
+  const cardBg = dark ? "bg-slate-800/50" : "bg-slate-50";
+  const textColor = dark ? "text-white" : "text-slate-900";
+  const subTextColor = dark ? "text-slate-400" : "text-slate-500";
+
+  return (
+    <div className={`p-4 ${cardBg} rounded-xl`}>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h3 className={`font-semibold ${textColor}`}>{cameraInfo.name}</h3>
+          <p className={`text-sm ${subTextColor}`}>{cameraInfo.location}</p>
+        </div>
+        <span className={`text-xs px-2 py-1 rounded-full ${cameraInfo.status === "online" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+          {cameraInfo.status}
+        </span>
+      </div>
+      <div className="flex items-center gap-4 text-xs">
+        <div className={`flex items-center gap-1.5 ${subTextColor}`}>
+          <Radio className="w-3.5 h-3.5" />
+          <span>{cameraInfo.resolution}</span>
+        </div>
+        <div className={`flex items-center gap-1.5 ${subTextColor}`}>
+          <Activity className="w-3.5 h-3.5" />
+          <span>{cameraInfo.fps} FPS</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EngineControls({ engineStatus, isLoading, onAction, dark }) {
+  const getButtonClasses = (action, isDisabled) => {
+    const base = "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all";
+    const disabled = isDisabled ? " opacity-50 cursor-not-allowed" : " hover:scale-105";
+
+    if (action === "start") {
+      return `${base} bg-emerald-600 text-white hover:bg-emerald-500${disabled}`;
+    }
+    if (action === "stop") {
+      return `${base} bg-red-600 text-white hover:bg-red-500${disabled}`;
+    }
+    return `${base} bg-amber-600 text-white hover:bg-amber-500${disabled}`;
+  };
+
+  const textColor = dark ? "text-white" : "text-slate-900";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className={`text-sm ${textColor}`}>Engine Status</span>
+        <span className={`text-xs font-medium capitalize ${
+          engineStatus === "running" ? "text-emerald-400" :
+          engineStatus === "error" ? "text-red-400" : "text-slate-400"
+        }`}>
+          {engineStatus}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => onAction("start")}
+          disabled={isLoading || engineStatus === "running"}
+          className={getButtonClasses("start", isLoading || engineStatus === "running")}
+        >
+          <Play className="w-4 h-4" />
+          Start
+        </button>
+        <button
+          onClick={() => onAction("stop")}
+          disabled={isLoading || engineStatus === "stopped"}
+          className={getButtonClasses("stop", isLoading || engineStatus === "stopped")}
+        >
+          <Square className="w-4 h-4" />
+          Stop
+        </button>
+        <button
+          onClick={() => onAction("restart")}
+          disabled={isLoading}
+          className={getButtonClasses("restart", isLoading)}
+        >
+          <RotateCcw className="w-4 h-4" />
+          Restart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DetectionStats({ stats, dark }) {
+  const cardBg = dark ? "bg-slate-800/50" : "bg-slate-50";
+  const textColor = dark ? "text-white" : "text-slate-900";
+  const subTextColor = dark ? "text-slate-400" : "text-slate-500";
+
+  const StatItem = ({ label, value, icon: Icon, color }) => (
+    <div className={`${cardBg} rounded-xl p-3`}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`w-4 h-4 ${color}`} />
+        <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>{label}</p>
+      </div>
+      <p className={`text-xl font-bold ${textColor}`}>{value}</p>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <StatItem label="Detections" value={stats.detections} icon={Eye} color="text-emerald-400" />
+      <StatItem label="Violations" value={stats.violations} icon={ShieldAlert} color="text-red-400" />
+      <StatItem label="Valid SOP" value={stats.valid} icon={ShieldCheck} color="text-sky-400" />
+      <div className={`${cardBg} rounded-xl p-3`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Activity className="w-4 h-4 text-amber-400" />
+          <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>Compliance</p>
+        </div>
+        <p className={`text-xl font-bold ${textColor}`}>{stats.compliance}%</p>
+        <div className={`w-full h-1.5 ${dark ? "bg-slate-700" : "bg-slate-200"} rounded-full mt-2`}>
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+            style={{ width: `${stats.compliance}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityFeed({ events, dark }) {
+  const scrollRef = useRef(null);
+  const [userScrolled, setUserScrolled] = useState(false);
+
+  useEffect(() => {
+    if (scrollRef.current && !userScrolled) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [events, userScrolled]);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop } = scrollRef.current;
+      setUserScrolled(scrollTop > 10);
+    }
+  };
+
+  const bgColor = dark ? "bg-slate-900" : "bg-white";
+  const borderColor = dark ? "border-slate-800" : "border-slate-200";
+  const textColor = dark ? "text-slate-200" : "text-slate-700";
+  const subTextColor = dark ? "text-slate-500" : "text-slate-400";
+
+  return (
+    <div className={`flex-1 flex flex-col min-h-0 ${bgColor}`}>
+      <div className={`flex items-center justify-between px-4 py-3 border-b ${borderColor}`}>
+        <div className="flex items-center gap-2">
+          <Activity className={`w-4 h-4 ${subTextColor}`} />
+          <h3 className={`text-sm font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}>Activity Feed</h3>
+        </div>
+        <span className={`text-xs ${subTextColor}`}>{events.length} events</span>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto"
+      >
+        {events.length === 0 ? (
+          <div className={`flex flex-col items-center justify-center h-32 ${subTextColor}`}>
+            <Activity className="w-8 h-8 mb-2 opacity-50" />
+            <p className="text-sm">No events yet</p>
+          </div>
+        ) : (
+          events.map((event, index) => {
+            const style = getSeverityStyle(event.severity);
+            return (
+              <div
+                key={event.id}
+                className={`flex items-start gap-2.5 px-4 py-2.5 ${dark ? "hover:bg-slate-800/50" : "hover:bg-slate-50"} transition-colors border-b ${borderColor} last:border-b-0`}
+                style={{ animation: index < 3 ? "slideIn 200ms ease-out" : undefined }}
+              >
+                <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${style.dot}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm ${textColor} truncate`}>{event.message}</p>
+                  <p className={`text-[10px] ${subTextColor} mt-0.5`}>{formatTimestamp(event.timestamp)}</p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {userScrolled && (
+        <button
+          onClick={() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = 0;
+              setUserScrolled(false);
+            }
+          }}
+          className={`absolute bottom-4 right-4 p-2 rounded-full shadow-lg ${dark ? "bg-slate-700 text-white" : "bg-white text-slate-900"} hover:scale-110 transition-transform`}
+        >
+          <Activity className="w-4 h-4" />
+        </button>
       )}
     </div>
   );
 }
 
-/** Engine control buttons - reusable */
-function EngineControls({ engineStatus, isLoading, onAction, dark = false }) {
-  const base = dark ? "border-slate-700 hover:bg-slate-700 text-slate-300 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700";
-  return (
-    <div className="flex flex-col gap-2">
-      <button
-        onClick={() => onAction("start")}
-        disabled={engineStatus === "running" || isLoading}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${base}`}
-      >
-        <Play className="w-3.5 h-3.5 text-emerald-400" />
-        Start Engine
-      </button>
-      <button
-        onClick={() => onAction("stop")}
-        disabled={engineStatus === "stopped" || isLoading}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${base}`}
-      >
-        <Square className="w-3.5 h-3.5 text-red-400" />
-        Stop Engine
-      </button>
-      <button
-        onClick={() => onAction("restart")}
-        disabled={isLoading}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${base}`}
-      >
-        <RotateCcw className={`w-3.5 h-3.5 text-blue-400 ${isLoading ? "animate-spin" : ""}`} />
-        Restart Engine
-      </button>
-    </div>
-  );
-}
-
-/** Collapsible sidebar */
-function Sidebar({ open, logs, engineStatus, isLoading, onEngineAction, dark }) {
-  const textPrimary  = dark ? "text-slate-100" : "text-slate-800";
-  const textSecondary = dark ? "text-slate-400" : "text-slate-500";
-  const borderColor  = dark ? "border-slate-700" : "border-slate-200";
-  const bg           = dark ? "bg-slate-900" : "bg-white";
-  const divider      = dark ? "divide-slate-700/50" : "divide-slate-100";
+function InfoSidebar({
+  dark,
+  sidebarOpen,
+  cameraInfo,
+  stats,
+  events,
+  engineStatus,
+  isLoading,
+  onEngineAction,
+  pinnedSections,
+  onTogglePin,
+}) {
+  const sidebarBg = dark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
+  const sectionBorder = dark ? "border-slate-800" : "border-slate-200";
 
   return (
     <aside
-      className={`
-        flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out
-        ${open ? "w-72" : "w-0"}
-        ${bg} border-l ${borderColor}
-      `}
+      className={`flex flex-col border-l transition-all duration-300 ease-in-out ${sidebarBg} ${
+        sidebarOpen ? "w-80 translate-x-0" : "w-0 translate-x-full opacity-0 overflow-hidden"
+      }`}
     >
-      <div className="w-72 h-full flex flex-col overflow-hidden">
-        {/* Engine Status */}
-        <div className={`px-4 pt-4 pb-3 border-b ${borderColor}`}>
-          <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${textSecondary}`}>Engine Control</h3>
+      <div className={`p-4 border-b ${sectionBorder}`}>
+        <CollapsibleSection
+          title="Camera Overview"
+          icon={Camera}
+          defaultExpanded={pinnedSections.camera}
+          pinned={pinnedSections.camera}
+          onTogglePin={() => onTogglePin("camera")}
+          dark={dark}
+        >
+          <CameraInfoCard cameraInfo={cameraInfo} dark={dark} />
+        </CollapsibleSection>
+      </div>
 
-          {/* Status pill */}
-          <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg ${dark ? "bg-slate-800" : "bg-slate-50"}`}>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${engineStatus === "running" ? "bg-emerald-400 animate-pulse" : engineStatus === "error" ? "bg-red-400" : "bg-slate-500"}`} />
-            <span className={`text-xs font-medium capitalize ${textPrimary}`}>{engineStatus}</span>
+      <div className={`p-4 border-b ${sectionBorder}`}>
+        <CollapsibleSection
+          title="Engine Controls"
+          icon={Settings}
+          defaultExpanded={pinnedSections.engine}
+          pinned={pinnedSections.engine}
+          onTogglePin={() => onTogglePin("engine")}
+          dark={dark}
+        >
+          <EngineControls
+            engineStatus={engineStatus}
+            isLoading={isLoading}
+            onAction={onEngineAction}
+            dark={dark}
+          />
+        </CollapsibleSection>
+      </div>
+
+      <div className={`p-4 border-b ${sectionBorder}`}>
+        <CollapsibleSection
+          title="Detection Summary"
+          icon={ShieldCheck}
+          defaultExpanded={pinnedSections.stats}
+          pinned={pinnedSections.stats}
+          onTogglePin={() => onTogglePin("stats")}
+          dark={dark}
+        >
+          <DetectionStats stats={stats} dark={dark} />
+        </CollapsibleSection>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className={`p-4 border-b ${sectionBorder}`}>
+          <div className="flex items-center gap-2">
+            <Radio className={`w-4 h-4 ${dark ? "text-slate-500" : "text-slate-400"}`} />
+            <h3 className={`text-sm font-semibold uppercase tracking-wider ${dark ? "text-slate-500" : "text-slate-400"}`}>
+              Live Activity
+            </h3>
           </div>
-
-          <EngineControls engineStatus={engineStatus} isLoading={isLoading} onAction={onEngineAction} dark={dark} />
         </div>
-
-        {/* Activity Log */}
-        <div className="flex-1 overflow-y-auto">
-          <div className={`px-4 py-3 border-b ${borderColor} sticky top-0 ${bg} z-10`}>
-            <div className="flex items-center justify-between">
-              <h3 className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Activity Log</h3>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${dark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"}`}>{logs.length}</span>
-            </div>
-          </div>
-
-          <ul className={`divide-y ${divider}`}>
-            {logs.map((log) => {
-              const style = getSeverityStyle(log.severity);
-              return (
-                <li key={log.id} className={`px-4 py-3 hover:${dark ? "bg-slate-800/50" : "bg-slate-50"} transition-colors`}>
-                  <div className="flex items-start gap-2.5">
-                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-xs font-medium truncate ${textPrimary}`}>{log.event}</p>
-                      <p className={`text-[10px] truncate ${textSecondary}`}>{log.camera}</p>
-                      <p className={`text-[10px] mt-0.5 ${textSecondary}`}>{log.timestamp}</p>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <ActivityFeed events={events} dark={dark} />
       </div>
     </aside>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function Monitoring() {
-  const [dark, setDark]                   = useState(true);
-  const [engineStatus, setEngineStatus]   = useState("running");
-  const [isLoading, setIsLoading]         = useState(false);
-  const [selectedCamera, setSelectedCamera] = useState(null);
-  const [logs]                            = useState(MOCK_LOGS);
-  const [cameras]                         = useState(MOCK_CAMERAS);
-  const [gridLayout, setGridLayout]       = useState("auto");
-  const [sidebarOpen, setSidebarOpen]     = useState(true);
+  const [dark, setDark] = useState(false);
+  const [engineStatus, setEngineStatus] = useState("running");
+  const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [streamStatus, setStreamStatus] = useState("offline");
+  const [connectionStatus, setConnectionStatus] = useState("offline");
+  const [autoPlay, setAutoPlay] = useState(false);
+  const [cameraInfo, setCameraInfo] = useState({
+    name: "Main Entrance",
+    location: "Plant A",
+    resolution: "1080p",
+    fps: 30,
+    status: "online",
+  });
+  const [stats, setStats] = useState({
+    detections: 0,
+    violations: 0,
+    valid: 0,
+    compliance: 0,
+  });
+  const [events, setEvents] = useState(MOCK_EVENTS);
+  const [pinnedSections, setPinnedSections] = useState({
+    camera: false,
+    engine: false,
+    stats: true,
+  });
 
-  // Theme classes
-  const bgPage       = dark ? "bg-slate-950 text-white"         : "bg-slate-100 text-slate-900";
-  const bgHeader     = dark ? "bg-slate-900 border-slate-800"   : "bg-white border-slate-200";
-  const textSecondary = dark ? "text-slate-400"                 : "text-slate-500";
-
-  const onlineCount = cameras.filter((c) => c.online).length;
-  const alertCount  = cameras.filter((c) => c.hasAlert).length;
+  const pageBg = dark ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-900";
 
   const handleEngineControl = async (action) => {
     setIsLoading(true);
     try {
-      await fetch(`http://localhost:5001/api/engine/${action}`, { method: "POST" });
+      await fetch(`${API_BASE}/api/engine/${action}`, { method: "POST" });
       setEngineStatus(action === "stop" ? "stopped" : "running");
     } catch {
       setEngineStatus("error");
     } finally {
-      setTimeout(() => setIsLoading(false), 800);
+      setTimeout(() => setIsLoading(false), 600);
     }
   };
 
-  // ── Theatre Mode ───────────────────────────────────────────────────────────
-  const TheatreView = () => {
-    const others = cameras.filter((c) => c.id !== selectedCamera.id);
-
-    return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Main large stream */}
-        <div className="flex-1 relative bg-black overflow-hidden">
-          {selectedCamera.online ? (
-            <img
-              src={`https://picsum.photos/seed/cam${selectedCamera.id}/1280/720`}
-              alt={selectedCamera.name}
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-3">
-              <WifiOff className="w-16 h-16" />
-              <p className="text-lg font-medium">Camera Offline</p>
-            </div>
-          )}
-
-          {/* Overlay: top-left info */}
-          <div className="absolute top-4 left-4 flex flex-col gap-1.5">
-            {selectedCamera.online && (
-              <span className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-semibold px-2 py-1 rounded">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                LIVE
-              </span>
-            )}
-            <div className="bg-black/70 backdrop-blur-sm rounded px-2 py-1">
-              <p className="text-white text-sm font-semibold">{selectedCamera.name}</p>
-              <p className="text-slate-300 text-xs">{selectedCamera.location}</p>
-            </div>
-          </div>
-
-          {/* Overlay: top-right stats */}
-          <div className="absolute top-4 right-4 flex flex-col gap-1 items-end">
-            <span className="bg-black/70 backdrop-blur-sm text-slate-300 text-xs px-2 py-1 rounded">{selectedCamera.resolution}</span>
-            <span className="bg-black/70 backdrop-blur-sm text-slate-300 text-xs px-2 py-1 rounded">{selectedCamera.fps} FPS</span>
-          </div>
-
-          {/* Overlay: alert banner */}
-          {selectedCamera.hasAlert && (
-            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 bg-amber-500/90 backdrop-blur-sm text-white text-sm font-medium px-3 py-2 rounded-lg">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {selectedCamera.lastAlert} — {selectedCamera.alertTime}
-            </div>
-          )}
-        </div>
-
-        {/* Thumbnail strip */}
-        <div className={`flex-shrink-0 border-t ${dark ? "border-slate-800 bg-slate-900" : "border-slate-200 bg-slate-50"} px-4 py-3`}>
-          <p className={`text-xs font-medium mb-2 ${textSecondary}`}>Other Cameras ({others.length})</p>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {others.map((cam) => (
-              <div key={cam.id} className="w-36 flex-shrink-0">
-                <CameraTile camera={cam} onClick={setSelectedCamera} compact />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+  const handleRetryStream = (nextStatus) => {
+    if (nextStatus) {
+      setStreamStatus(nextStatus);
+    }
   };
 
-  // ── Grid View ──────────────────────────────────────────────────────────────
-  const GridView = () => (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div className={`grid ${getGridClass(gridLayout)} gap-3`}>
-        {cameras.map((cam) => (
-          <CameraTile key={cam.id} camera={cam} onClick={setSelectedCamera} />
-        ))}
-      </div>
-    </div>
-  );
+  const handleSnapshot = () => {
+    window.open(`${API_BASE}/api/stream/snapshot?t=${Date.now()}`, "_blank");
+  };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  const handleTogglePin = (section) => {
+    setPinnedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/status`);
+        if (!res.ok) throw new Error("status");
+        const data = await res.json();
+        if (!isMounted) return;
+        setConnectionStatus("online");
+        setEngineStatus(data.engine_status || engineStatus);
+        setCameraInfo((prev) => ({
+          ...prev,
+          name: data.camera_name || prev.name,
+          location: data.camera_location || prev.location,
+          resolution: data.resolution || prev.resolution,
+          fps: data.fps || prev.fps,
+          status: data.camera_status || prev.status,
+        }));
+        if (autoPlay) {
+          setStreamStatus(data.stream_status || "live");
+        }
+      } catch {
+        if (!isMounted) return;
+        setConnectionStatus("offline");
+        if (autoPlay) {
+          setStreamStatus("offline");
+        }
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [engineStatus, autoPlay]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/stats`);
+        if (!res.ok) throw new Error("stats");
+        const data = await res.json();
+        if (!isMounted) return;
+        setStats({
+          detections: data.detections ?? 0,
+          violations: data.violations ?? 0,
+          valid: data.valid ?? 0,
+          compliance: data.compliance ?? 0,
+        });
+      } catch {
+        if (!isMounted) return;
+        setStats((prev) => ({
+          ...prev,
+          compliance: prev.compliance || 76,
+          detections: prev.detections || 320,
+          violations: prev.violations || 24,
+          valid: prev.valid || 296,
+        }));
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/events?limit=20`);
+        if (!res.ok) throw new Error("events");
+        const data = await res.json();
+        if (!isMounted) return;
+        const mapped = (data.events || data || []).map((event, index) => ({
+          id: event.id ?? `${event.timestamp}-${index}`,
+          message: event.message || event.description || "Detection event",
+          severity: event.severity || "info",
+          timestamp: event.timestamp || new Date(),
+        }));
+        setEvents(mapped.slice(0, 20));
+      } catch {
+        if (!isMounted) return;
+        setEvents(MOCK_EVENTS);
+      }
+    };
+
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const resolutionText = useMemo(() => cameraInfo.resolution || "--", [cameraInfo.resolution]);
+  const fpsText = useMemo(() => cameraInfo.fps || "--", [cameraInfo.fps]);
+
   return (
-    <div className={`flex flex-col h-full ${bgPage} transition-colors duration-300`}>
+    <div className={`h-full flex flex-col ${pageBg} transition-colors duration-300`}>
+      <MonitoringHeader
+        dark={dark}
+        connectionStatus={connectionStatus}
+        engineStatus={engineStatus}
+        sidebarOpen={sidebarOpen}
+        onToggleTheme={() => setDark((prev) => !prev)}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+      />
 
-      {/* ── Header ── */}
-      <header className={`flex-shrink-0 flex items-center gap-3 px-5 py-3 border-b ${bgHeader} transition-colors duration-300`}>
-
-        {/* Back button (theatre mode only) */}
-        {selectedCamera && (
-          <button
-            onClick={() => setSelectedCamera(null)}
-            className={`flex items-center gap-1.5 text-sm font-medium ${textSecondary} hover:text-white transition-colors mr-1`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </button>
-        )}
-
-        {/* Title */}
-        <div className="flex items-center gap-2">
-          <Camera className={`w-4 h-4 ${textSecondary}`} />
-          <h1 className="text-sm font-semibold">
-            {selectedCamera ? selectedCamera.name : "Live Monitoring"}
-          </h1>
-        </div>
-
-        {/* Stats badges */}
-        {!selectedCamera && (
-          <div className="flex items-center gap-2 ml-2">
-            <span className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${dark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>
-              <Wifi className="w-3 h-3" />
-              {onlineCount} Online
-            </span>
-            <span className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${dark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"}`}>
-              <WifiOff className="w-3 h-3" />
-              {cameras.length - onlineCount} Offline
-            </span>
-            {alertCount > 0 && (
-              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-amber-500/10 text-amber-400">
-                <Bell className="w-3 h-3" />
-                {alertCount} Alert
-              </span>
-            )}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <main className="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
+          <div className="flex-1 min-h-[320px]">
+            <StreamViewer
+              streamStatus={streamStatus}
+              onRetry={handleRetryStream}
+              resolution={resolutionText}
+              fps={fpsText}
+              dark={dark}
+              cameraName={cameraInfo.name}
+              stats={stats}
+              onSnapshot={handleSnapshot}
+            />
           </div>
-        )}
 
-        <div className="flex-1" />
-
-        {/* Grid layout selector (grid view only) */}
-        {!selectedCamera && (
-          <div className={`flex items-center gap-1 p-1 rounded-lg ${dark ? "bg-slate-800" : "bg-slate-100"}`}>
-            {[
-              { value: "auto", icon: <LayoutGrid className="w-3.5 h-3.5" /> },
-              { value: "2x2",  icon: <Grid2x2  className="w-3.5 h-3.5" /> },
-              { value: "3x3",  icon: <Grid3x3  className="w-3.5 h-3.5" /> },
-            ].map(({ value, icon }) => (
-              <button
-                key={value}
-                onClick={() => setGridLayout(value)}
-                className={`p-1.5 rounded-md transition-colors text-xs ${
-                  gridLayout === value
-                    ? dark ? "bg-slate-700 text-white" : "bg-white text-slate-900 shadow-sm"
-                    : textSecondary
-                }`}
-                title={value}
-              >
-                {icon}
-              </button>
-            ))}
+          <div className="flex items-center justify-center gap-3 -mt-2">
+            <button
+              onClick={() => setAutoPlay((prev) => !prev)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                autoPlay
+                  ? dark
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                  : dark
+                    ? "bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200"
+                    : "bg-white text-slate-600 border border-slate-200 hover:text-slate-900"
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full transition-colors ${autoPlay ? "bg-emerald-500" : "bg-slate-400"}`} />
+              Auto Play Live Streaming
+            </button>
           </div>
-        )}
 
-        {/* Theme toggle */}
-        <button
-          onClick={() => setDark((d) => !d)}
-          className={`p-2 rounded-lg transition-colors ${dark ? "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          title="Toggle theme"
-        >
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="w-4 h-4 text-emerald-400" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Stream Status</p>
+              </div>
+              <p className="text-lg font-semibold capitalize">{streamStatus}</p>
+            </div>
+            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Violations</p>
+              </div>
+              <p className="text-lg font-semibold">{stats.violations}</p>
+            </div>
+            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Compliance</p>
+              </div>
+              <p className="text-lg font-semibold">{stats.compliance}%</p>
+            </div>
+          </div>
+        </main>
 
-        {/* Sidebar toggle */}
-        <button
-          onClick={() => setSidebarOpen((o) => !o)}
-          className={`p-2 rounded-lg transition-colors ${dark ? "bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {sidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-        </button>
-      </header>
-
-      {/* ── Body ── */}
-      <div className="flex-1 flex overflow-hidden">
-
-        {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {selectedCamera ? <TheatreView /> : <GridView />}
-        </div>
-
-        {/* Sidebar */}
-        <Sidebar
-          open={sidebarOpen}
-          logs={logs}
+        <InfoSidebar
+          dark={dark}
+          sidebarOpen={sidebarOpen}
+          cameraInfo={cameraInfo}
+          stats={stats}
+          events={events}
           engineStatus={engineStatus}
           isLoading={isLoading}
           onEngineAction={handleEngineControl}
-          dark={dark}
+          pinnedSections={pinnedSections}
+          onTogglePin={handleTogglePin}
         />
       </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
