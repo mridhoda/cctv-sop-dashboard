@@ -30,6 +30,7 @@ let socket = null;
  */
 export function getSocket() {
   if (!socket) {
+    console.log("[Socket] Connecting to:", SOCKET_URL);
     socket = io(SOCKET_URL, {
       autoConnect: false,
       reconnection: true,
@@ -38,6 +39,17 @@ export function getSocket() {
       reconnectionDelayMax: 5000,
       timeout: 10000,
       transports: ["websocket", "polling"],
+    });
+    
+    // Debug listeners
+    socket.on("connect", () => {
+      console.log("[Socket] Connected successfully");
+    });
+    socket.on("connect_error", (err) => {
+      console.error("[Socket] Connection error:", err.message);
+    });
+    socket.on("disconnect", (reason) => {
+      console.log("[Socket] Disconnected:", reason);
     });
   }
   return socket;

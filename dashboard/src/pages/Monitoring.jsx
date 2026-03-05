@@ -91,13 +91,16 @@ function StreamViewer({
     }
   }, [streamStatus]);
 
-  const handleImageError = () => {
+  const handleImageError = (e) => {
+    console.error("[StreamViewer] Image load error:", e);
+    console.error("[StreamViewer] Failed URL:", streamSrc);
     setIsImageLoaded(false);
     hasNotifiedLive.current = false;
     onRetry("error");
   };
 
   const handleImageLoad = () => {
+    console.log("[StreamViewer] Image loaded successfully");
     setIsImageLoaded(true);
     // Notify parent only once to transition to "live" — prevents re-render loop
     if (!hasNotifiedLive.current) {
@@ -703,10 +706,13 @@ export default function Monitoring() {
     let isMounted = true;
 
     const fetchStatus = async () => {
+      const url = `${API_BASE}/api/status`;
       try {
-        const res = await fetch(`${API_BASE}/api/status`);
-        if (!res.ok) throw new Error("status");
+        console.log("[Monitoring] Fetching status from:", url);
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error(`status ${res.status}`);
         const data = await res.json();
+        console.log("[Monitoring] Status response:", data);
         if (!isMounted) return;
         setConnectionStatus("online");
         setEngineStatus(data.engine_status || engineStatus);
@@ -721,7 +727,9 @@ export default function Monitoring() {
         if (autoPlay) {
           setStreamStatus(data.stream_status || "live");
         }
-      } catch {
+      } catch (err) {
+        console.error("[Monitoring] Status fetch error:", err);
+        console.error("[Monitoring] API_BASE used:", API_BASE);
         if (!isMounted) return;
         setConnectionStatus("offline");
         if (autoPlay) {
