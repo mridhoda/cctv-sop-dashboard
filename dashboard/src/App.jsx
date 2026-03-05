@@ -49,13 +49,13 @@ const MOCK_USERS = [
     name: "Viewer",
     role: "viewer",
     roleLabel: "Viewer",
-    allowedTabs: ["home", "monitoring"],
+    allowedTabs: ["monitoring"],
   },
 ];
 
 const ROLE_PERMISSIONS = {
   superadmin: ["home", "monitoring", "history", "identities", "reports", "settings"],
-  viewer: ["home", "monitoring"],
+  viewer: ["monitoring"],
 };
 
 const MOCK_INCIDENTS = [
@@ -84,10 +84,10 @@ const App = () => {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
 
-  // Guard: jika tab tidak diizinkan untuk role, redirect ke home
+  // Guard: jika tab tidak diizinkan untuk role, redirect ke tab pertama yang diizinkan
   useEffect(() => {
     if (currentUser && !currentUser.allowedTabs.includes(activeTab)) {
-      setActiveTab('home');
+      setActiveTab(currentUser.allowedTabs[0] || 'home');
     }
   }, [currentUser, activeTab]);
   // Login View Component
