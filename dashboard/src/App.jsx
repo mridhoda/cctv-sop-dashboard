@@ -202,23 +202,6 @@ const App = () => {
           <span className="font-bold text-lg text-white">VisionGuard AI</span>
         </div>
 
-        {/* User Info */}
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-slate-700 p-2 rounded-full text-slate-300 flex-shrink-0">
-            <User size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{currentUser?.name}</p>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              currentUser?.role === 'superadmin'
-                ? 'bg-blue-500/20 text-blue-400'
-                : 'bg-green-500/20 text-green-400'
-            }`}>
-              {currentUser?.roleLabel}
-            </span>
-          </div>
-        </div>
-
         <nav className="flex-1 p-4 space-y-1">
           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-2 pb-1">Menu Utama</p>
           {currentUser?.allowedTabs.includes('home') && (
@@ -279,47 +262,30 @@ const App = () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        {/* User Info & Notification */}
+        <div className="px-4 py-2">
+          <div className="flex items-center justify-center gap-3 px-3 py-2">
+            <div className="bg-slate-700 p-1.5 rounded-full text-slate-400">
+              <User size={14} />
+            </div>
+            <button className="relative text-slate-400 hover:text-white transition">
+              <Bell size={16} />
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center">3</span>
+            </button>
+          </div>
+        </div>
+        <div className="border-t border-slate-800 px-4 py-2">
           <button
             onClick={() => { setCurrentUser(null); setActiveTab('home'); }}
-            className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition"
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition text-sm"
           >
-            <LogOut size={20} /> Keluar
+            <LogOut size={16} /> Keluar
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative w-full max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Cari lokasi atau jenis insiden..." 
-                className="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full text-sm outline-none focus:ring-1 focus:ring-slate-300"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <button className="relative text-slate-500 hover:text-slate-900 transition">
-              <Bell size={22} />
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">3</span>
-            </button>
-            <div className="flex items-center gap-3 border-l border-slate-200 pl-6">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-slate-900 leading-none">{currentUser?.name}</p>
-                <p className="text-xs text-slate-500">{currentUser?.roleLabel}</p>
-              </div>
-              <div className="bg-slate-200 p-2 rounded-full text-slate-600">
-                <User size={20} />
-              </div>
-            </div>
-          </div>
-        </header>
-
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100">
         {/* Scrollable Area — content switches by activeTab */}
         <div className="flex-1 overflow-y-auto">
 
