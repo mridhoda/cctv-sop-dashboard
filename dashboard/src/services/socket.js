@@ -1,8 +1,9 @@
 /**
  * Socket.IO Connection Manager
  *
- * Singleton socket instance for communicating with the V2 engine server.
- * Server: Flask + SocketIO at http://localhost:5001 (path: /socket.io/)
+ * Singleton socket instance for communicating with the CCTV SOP Detection Server.
+ * Server: Flask + SocketIO at https://api.foodiserver.my.id (path: /socket.io/)
+ * Configurable via VITE_WS_URL environment variable.
  *
  * Dashboard clients require NO authentication — just connect and listen.
  *
@@ -19,7 +20,7 @@
  */
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE || "http://localhost:5001";
+const SOCKET_URL = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
 
 let socket = null;
 

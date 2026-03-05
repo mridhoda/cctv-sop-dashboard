@@ -22,7 +22,7 @@ import {
   Settings,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5001";
+const API_BASE = import.meta.env.VITE_API_URL || "https://api.foodiserver.my.id";
 
 const SEVERITY_STYLES = {
   alert: { dot: "bg-red-500", text: "text-red-400" },
