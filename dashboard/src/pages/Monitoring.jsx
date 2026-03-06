@@ -4,8 +4,8 @@ import {
   Play,
   Square,
   RotateCcw,
+  RotateCw,
   Loader2,
-  AlertTriangle,
   Sun,
   Moon,
   PanelRightClose,
@@ -22,7 +22,7 @@ import {
   Settings,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://api.foodiserver.my.id";
+const API_BASE = "https://api.foodiserver.my.id";
 
 const SEVERITY_STYLES = {
   alert: { dot: "bg-red-500", text: "text-red-400" },
@@ -31,10 +31,30 @@ const SEVERITY_STYLES = {
 };
 
 const MOCK_EVENTS = [
-  { id: 1, message: "Helmet missing detected", severity: "alert", timestamp: new Date(Date.now() - 1000 * 60 * 2) },
-  { id: 2, message: "Safety shoes compliant", severity: "info", timestamp: new Date(Date.now() - 1000 * 60 * 6) },
-  { id: 3, message: "Mask improperly worn", severity: "warning", timestamp: new Date(Date.now() - 1000 * 60 * 12) },
-  { id: 4, message: "Valid SOP compliance confirmed", severity: "info", timestamp: new Date(Date.now() - 1000 * 60 * 18) },
+  {
+    id: 1,
+    message: "Helmet missing detected",
+    severity: "alert",
+    timestamp: new Date(Date.now() - 1000 * 60 * 2),
+  },
+  {
+    id: 2,
+    message: "Safety shoes compliant",
+    severity: "info",
+    timestamp: new Date(Date.now() - 1000 * 60 * 6),
+  },
+  {
+    id: 3,
+    message: "Mask improperly worn",
+    severity: "warning",
+    timestamp: new Date(Date.now() - 1000 * 60 * 12),
+  },
+  {
+    id: 4,
+    message: "Valid SOP compliance confirmed",
+    severity: "info",
+    timestamp: new Date(Date.now() - 1000 * 60 * 18),
+  },
 ];
 
 const formatTimestamp = (date) => {
@@ -43,7 +63,8 @@ const formatTimestamp = (date) => {
   return value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const getSeverityStyle = (severity) => SEVERITY_STYLES[severity] || SEVERITY_STYLES.info;
+const getSeverityStyle = (severity) =>
+  SEVERITY_STYLES[severity] || SEVERITY_STYLES.info;
 
 function StreamViewer({
   streamStatus,
@@ -60,6 +81,7 @@ function StreamViewer({
   const [showResDropdown, setShowResDropdown] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [clockTime, setClockTime] = useState("");
+  const [rotation, setRotation] = useState(0); // 0 = landscape, 90 = portrait CW, -90 = portrait CCW
   const hasNotifiedLive = useRef(false);
 
   const resolutions = ["480p (SD)", "720p (HD)", "1080p (FHD)", "1440p (QHD)"];
@@ -67,8 +89,24 @@ function StreamViewer({
   // Stable stream URL - only changes when streamKey changes (manual retry)
   const streamSrc = useMemo(
     () => `${API_BASE}/api/stream/video?k=${streamKey}`,
-    [streamKey]
+    [streamKey],
   );
+
+  const handleRotate = () => {
+    setRotation((prev) => {
+      // Cycle: 0 → 90 → 180 → 270 → 0
+      return (prev + 90) % 360;
+    });
+  };
+
+  // When rotated 90 or 270 degrees, swap width/height so image fits within the container
+  const isPortrait = rotation === 90 || rotation === 270;
+  const rotationLabel = {
+    0: "Landscape",
+    90: "Portrait ↻",
+    180: "Inverted",
+    270: "Portrait ↺",
+  }[rotation];
 
   // Live clock that updates every second independently of re-renders
   useEffect(() => {
@@ -76,7 +114,7 @@ function StreamViewer({
       const now = new Date();
       const pad = (n) => String(n).padStart(2, "0");
       setClockTime(
-        `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}, ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
+        `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}, ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`,
       );
     };
     tick();
@@ -110,7 +148,9 @@ function StreamViewer({
   };
 
   const containerClass = dark ? "bg-slate-950" : "bg-slate-100";
-  const innerBg = dark ? "bg-gradient-to-b from-slate-800 to-slate-950" : "bg-gradient-to-b from-slate-700 to-slate-800";
+  const innerBg = dark
+    ? "bg-gradient-to-b from-slate-800 to-slate-950"
+    : "bg-gradient-to-b from-slate-700 to-slate-800";
 
   // Preload image saat connecting untuk mencegah flicker
   const showConnecting = streamStatus === "connecting";
@@ -118,7 +158,9 @@ function StreamViewer({
   const showOffline = streamStatus === "offline";
 
   return (
-    <div className={`relative h-full w-full overflow-hidden rounded-2xl ${containerClass} group`}>
+    <div
+      className={`relative h-full w-full overflow-hidden rounded-2xl ${containerClass} group`}
+    >
       {/* Hidden image loader saat connecting - preload tapi UI tetap showing loader */}
       {(showConnecting || (streamStatus === "live" && !isImageLoaded)) && (
         <img
@@ -132,20 +174,33 @@ function StreamViewer({
 
       {/* Visible image hanya saat live dan sudah loaded */}
       {streamStatus === "live" && isImageLoaded && (
-        <img
-          src={streamSrc}
-          alt="Live stream"
-          className="h-full w-full object-contain"
-          onError={handleImageError}
-          onLoad={handleImageLoad}
-        />
+        <div className="h-full w-full flex items-center justify-center overflow-hidden">
+          <img
+            src={streamSrc}
+            alt="Live stream"
+            className="transition-transform duration-300 ease-in-out"
+            style={{
+              transform: `rotate(${rotation}deg)`,
+              // When portrait, swap so image fills the container correctly
+              maxWidth: isPortrait ? "100vh" : "100%",
+              maxHeight: isPortrait ? "100vw" : "100%",
+              objectFit: "contain",
+            }}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+          />
+        </div>
       )}
 
       {/* Connecting Overlay - tampil di atas image dengan backdrop blur */}
       {showConnecting && (
-        <div className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}>
+        <div
+          className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}
+        >
           <div className="flex flex-col items-center justify-center gap-4 text-white">
-            <p className="text-lg font-medium italic">{cameraName || "Camera"}</p>
+            <p className="text-lg font-medium italic">
+              {cameraName || "Camera"}
+            </p>
             <div className="w-20 h-20 rounded-full border-2 border-white/30 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-white/70" />
             </div>
@@ -156,9 +211,13 @@ function StreamViewer({
 
       {/* Error/Offline Overlay */}
       {(showError || showOffline) && !isImageLoaded && (
-        <div className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}>
+        <div
+          className={`absolute inset-0 ${innerBg} flex flex-col items-center justify-center z-10`}
+        >
           <div className="flex flex-col items-center justify-center gap-4 text-white">
-            <p className="text-lg font-medium italic">{cameraName || "Camera"}</p>
+            <p className="text-lg font-medium italic">
+              {cameraName || "Camera"}
+            </p>
             <button
               onClick={() => {
                 setIsImageLoaded(false);
@@ -168,10 +227,15 @@ function StreamViewer({
               }}
               className="w-20 h-20 rounded-full border-2 border-white/30 hover:border-white/60 flex items-center justify-center transition-colors group"
             >
-              <Play className="w-8 h-8 text-white/70 group-hover:text-white group-hover:scale-110 transition-all ml-1" fill="currentColor" />
+              <Play
+                className="w-8 h-8 text-white/70 group-hover:text-white group-hover:scale-110 transition-all ml-1"
+                fill="currentColor"
+              />
             </button>
             <p className="text-sm text-white/60">
-              {showError ? "Gagal memuat stream. Klik untuk mencoba lagi." : "Klik untuk memulai live streaming"}
+              {showError
+                ? "Gagal memuat stream. Klik untuk mencoba lagi."
+                : "Klik untuk memulai live streaming"}
             </p>
           </div>
         </div>
@@ -181,14 +245,18 @@ function StreamViewer({
       {streamStatus === "live" && isImageLoaded && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-red-500/90 backdrop-blur-sm px-3 py-1.5 rounded-full z-20">
           <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          <span className="text-white text-xs font-bold tracking-wide">LIVE</span>
+          <span className="text-white text-xs font-bold tracking-wide">
+            LIVE
+          </span>
         </div>
       )}
 
       {/* Timestamp - hanya tampil saat live dan loaded */}
       {streamStatus === "live" && isImageLoaded && (
         <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 z-20">
-          <span className="text-amber-400 text-base font-mono font-medium">{clockTime}</span>
+          <span className="text-amber-400 text-base font-mono font-medium">
+            {clockTime}
+          </span>
         </div>
       )}
 
@@ -222,6 +290,20 @@ function StreamViewer({
         </div>
       )}
 
+      {/* Rotate Button - always visible when live */}
+      {streamStatus === "live" && isImageLoaded && (
+        <div className="absolute top-3 right-3 z-30">
+          <button
+            onClick={handleRotate}
+            title="Rotate feed"
+            className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            {rotationLabel}
+          </button>
+        </div>
+      )}
+
       {/* Resolution Selector - tampil di semua state */}
       <div className="absolute bottom-6 right-6 z-30">
         <button
@@ -230,15 +312,22 @@ function StreamViewer({
         >
           <Camera className="w-3.5 h-3.5" />
           {selectedResolution}
-          <ChevronDown className={`w-3 h-3 transition-transform ${showResDropdown ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`w-3 h-3 transition-transform ${showResDropdown ? "rotate-180" : ""}`}
+          />
         </button>
-        
+
         {showResDropdown && (
-          <div className={`absolute bottom-full right-0 mb-1 rounded-lg shadow-lg overflow-hidden ${dark ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"}`}>
+          <div
+            className={`absolute bottom-full right-0 mb-1 rounded-lg shadow-lg overflow-hidden ${dark ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"}`}
+          >
             {resolutions.map((res) => (
               <button
                 key={res}
-                onClick={() => { setSelectedResolution(res); setShowResDropdown(false); }}
+                onClick={() => {
+                  setSelectedResolution(res);
+                  setShowResDropdown(false);
+                }}
                 className={`block w-full text-left px-3 py-2 text-xs ${dark ? "text-slate-300 hover:bg-slate-700" : "text-slate-700 hover:bg-slate-100"} ${selectedResolution === res ? (dark ? "bg-slate-700" : "bg-slate-100") : ""}`}
               >
                 {res}
@@ -271,26 +360,42 @@ function MonitoringHeader({
     error: "bg-red-500",
   };
 
-  const headerBg = dark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
+  const headerBg = dark
+    ? "bg-slate-900 border-slate-800"
+    : "bg-white border-slate-200";
   const textColor = dark ? "text-white" : "text-slate-900";
   const subTextColor = dark ? "text-slate-400" : "text-slate-500";
 
   return (
-    <header className={`flex items-center justify-between px-5 py-3 border-b ${headerBg}`}>
+    <header
+      className={`flex items-center justify-between px-5 py-3 border-b ${headerBg}`}
+    >
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${dark ? "bg-slate-800" : "bg-slate-100"}`}>
+        <div
+          className={`p-2 rounded-lg ${dark ? "bg-slate-800" : "bg-slate-100"}`}
+        >
           <Camera className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <h1 className={`text-sm font-semibold ${textColor}`}>Live Monitoring</h1>
+          <h1 className={`text-sm font-semibold ${textColor}`}>
+            Live Monitoring
+          </h1>
           <div className="flex items-center gap-3 mt-0.5">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${statusColors[connectionStatus] || statusColors.connecting}`} />
-              <span className={`text-xs ${subTextColor} capitalize`}>{connectionStatus}</span>
+              <span
+                className={`w-2 h-2 rounded-full ${statusColors[connectionStatus] || statusColors.connecting}`}
+              />
+              <span className={`text-xs ${subTextColor} capitalize`}>
+                {connectionStatus}
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${engineColors[engineStatus] || engineColors.stopped} ${engineStatus === "running" ? "animate-pulse" : ""}`} />
-              <span className={`text-xs ${subTextColor} capitalize`}>{engineStatus}</span>
+              <span
+                className={`w-2 h-2 rounded-full ${engineColors[engineStatus] || engineColors.stopped} ${engineStatus === "running" ? "animate-pulse" : ""}`}
+              />
+              <span className={`text-xs ${subTextColor} capitalize`}>
+                {engineStatus}
+              </span>
             </div>
           </div>
         </div>
@@ -307,14 +412,26 @@ function MonitoringHeader({
           onClick={onToggleSidebar}
           className={`p-2 rounded-lg transition-colors ${dark ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
         >
-          {sidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          {sidebarOpen ? (
+            <PanelRightClose className="w-4 h-4" />
+          ) : (
+            <PanelRightOpen className="w-4 h-4" />
+          )}
         </button>
       </div>
     </header>
   );
 }
 
-function CollapsibleSection({ title, icon: Icon, children, defaultExpanded = false, pinned = false, onTogglePin, dark }) {
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  children,
+  defaultExpanded = false,
+  pinned = false,
+  onTogglePin,
+  dark,
+}) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const textColor = dark ? "text-slate-500" : "text-slate-400";
   const iconColor = dark ? "text-slate-500" : "text-slate-400";
@@ -327,7 +444,9 @@ function CollapsibleSection({ title, icon: Icon, children, defaultExpanded = fal
       >
         <div className="flex items-center gap-2">
           {Icon && <Icon className={`w-4 h-4 ${iconColor}`} />}
-          <h3 className={`text-sm font-semibold uppercase tracking-wider ${textColor}`}>
+          <h3
+            className={`text-sm font-semibold uppercase tracking-wider ${textColor}`}
+          >
             {title}
           </h3>
         </div>
@@ -340,8 +459,12 @@ function CollapsibleSection({ title, icon: Icon, children, defaultExpanded = fal
               }}
               className={`p-1 rounded transition-colors ${
                 pinned
-                  ? dark ? "text-emerald-400 bg-emerald-400/10" : "text-emerald-600 bg-emerald-100"
-                  : dark ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-600"
+                  ? dark
+                    ? "text-emerald-400 bg-emerald-400/10"
+                    : "text-emerald-600 bg-emerald-100"
+                  : dark
+                    ? "text-slate-600 hover:text-slate-400"
+                    : "text-slate-400 hover:text-slate-600"
               }`}
               title={pinned ? "Unpin section" : "Pin section"}
             >
@@ -372,7 +495,9 @@ function CameraInfoCard({ cameraInfo, dark }) {
           <h3 className={`font-semibold ${textColor}`}>{cameraInfo.name}</h3>
           <p className={`text-sm ${subTextColor}`}>{cameraInfo.location}</p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full ${cameraInfo.status === "online" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+        <span
+          className={`text-xs px-2 py-1 rounded-full ${cameraInfo.status === "online" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}
+        >
           {cameraInfo.status}
         </span>
       </div>
@@ -392,8 +517,11 @@ function CameraInfoCard({ cameraInfo, dark }) {
 
 function EngineControls({ engineStatus, isLoading, onAction, dark }) {
   const getButtonClasses = (action, isDisabled) => {
-    const base = "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all";
-    const disabled = isDisabled ? " opacity-50 cursor-not-allowed" : " hover:scale-105";
+    const base =
+      "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all";
+    const disabled = isDisabled
+      ? " opacity-50 cursor-not-allowed"
+      : " hover:scale-105";
 
     if (action === "start") {
       return `${base} bg-emerald-600 text-white hover:bg-emerald-500${disabled}`;
@@ -410,10 +538,15 @@ function EngineControls({ engineStatus, isLoading, onAction, dark }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className={`text-sm ${textColor}`}>Engine Status</span>
-        <span className={`text-xs font-medium capitalize ${
-          engineStatus === "running" ? "text-emerald-400" :
-          engineStatus === "error" ? "text-red-400" : "text-slate-400"
-        }`}>
+        <span
+          className={`text-xs font-medium capitalize ${
+            engineStatus === "running"
+              ? "text-emerald-400"
+              : engineStatus === "error"
+                ? "text-red-400"
+                : "text-slate-400"
+          }`}
+        >
           {engineStatus}
         </span>
       </div>
@@ -421,7 +554,10 @@ function EngineControls({ engineStatus, isLoading, onAction, dark }) {
         <button
           onClick={() => onAction("start")}
           disabled={isLoading || engineStatus === "running"}
-          className={getButtonClasses("start", isLoading || engineStatus === "running")}
+          className={getButtonClasses(
+            "start",
+            isLoading || engineStatus === "running",
+          )}
         >
           <Play className="w-4 h-4" />
           Start
@@ -429,7 +565,10 @@ function EngineControls({ engineStatus, isLoading, onAction, dark }) {
         <button
           onClick={() => onAction("stop")}
           disabled={isLoading || engineStatus === "stopped"}
-          className={getButtonClasses("stop", isLoading || engineStatus === "stopped")}
+          className={getButtonClasses(
+            "stop",
+            isLoading || engineStatus === "stopped",
+          )}
         >
           <Square className="w-4 h-4" />
           Stop
@@ -456,7 +595,9 @@ function DetectionStats({ stats, dark }) {
     <div className={`${cardBg} rounded-xl p-3`}>
       <div className="flex items-center gap-2 mb-2">
         <Icon className={`w-4 h-4 ${color}`} />
-        <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>{label}</p>
+        <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>
+          {label}
+        </p>
       </div>
       <p className={`text-xl font-bold ${textColor}`}>{value}</p>
     </div>
@@ -464,16 +605,35 @@ function DetectionStats({ stats, dark }) {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <StatItem label="Detections" value={stats.detections} icon={Eye} color="text-emerald-400" />
-      <StatItem label="Violations" value={stats.violations} icon={ShieldAlert} color="text-red-400" />
-      <StatItem label="Valid SOP" value={stats.valid} icon={ShieldCheck} color="text-sky-400" />
+      <StatItem
+        label="Detections"
+        value={stats.detections}
+        icon={Eye}
+        color="text-emerald-400"
+      />
+      <StatItem
+        label="Violations"
+        value={stats.violations}
+        icon={ShieldAlert}
+        color="text-red-400"
+      />
+      <StatItem
+        label="Valid SOP"
+        value={stats.valid}
+        icon={ShieldCheck}
+        color="text-sky-400"
+      />
       <div className={`${cardBg} rounded-xl p-3`}>
         <div className="flex items-center gap-2 mb-2">
           <Activity className="w-4 h-4 text-amber-400" />
-          <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>Compliance</p>
+          <p className={`text-[10px] uppercase tracking-wider ${subTextColor}`}>
+            Compliance
+          </p>
         </div>
         <p className={`text-xl font-bold ${textColor}`}>{stats.compliance}%</p>
-        <div className={`w-full h-1.5 ${dark ? "bg-slate-700" : "bg-slate-200"} rounded-full mt-2`}>
+        <div
+          className={`w-full h-1.5 ${dark ? "bg-slate-700" : "bg-slate-200"} rounded-full mt-2`}
+        >
           <div
             className="h-full bg-emerald-500 rounded-full transition-all duration-500"
             style={{ width: `${stats.compliance}%` }}
@@ -508,12 +668,20 @@ function ActivityFeed({ events, dark }) {
 
   return (
     <div className={`flex-1 flex flex-col min-h-0 ${bgColor}`}>
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${borderColor}`}>
+      <div
+        className={`flex items-center justify-between px-4 py-3 border-b ${borderColor}`}
+      >
         <div className="flex items-center gap-2">
           <Activity className={`w-4 h-4 ${subTextColor}`} />
-          <h3 className={`text-sm font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}>Activity Feed</h3>
+          <h3
+            className={`text-sm font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}
+          >
+            Activity Feed
+          </h3>
         </div>
-        <span className={`text-xs ${subTextColor}`}>{events.length} events</span>
+        <span className={`text-xs ${subTextColor}`}>
+          {events.length} events
+        </span>
       </div>
 
       <div
@@ -522,7 +690,9 @@ function ActivityFeed({ events, dark }) {
         className="flex-1 overflow-y-auto"
       >
         {events.length === 0 ? (
-          <div className={`flex flex-col items-center justify-center h-32 ${subTextColor}`}>
+          <div
+            className={`flex flex-col items-center justify-center h-32 ${subTextColor}`}
+          >
             <Activity className="w-8 h-8 mb-2 opacity-50" />
             <p className="text-sm">No events yet</p>
           </div>
@@ -533,12 +703,20 @@ function ActivityFeed({ events, dark }) {
               <div
                 key={event.id}
                 className={`flex items-start gap-2.5 px-4 py-2.5 ${dark ? "hover:bg-slate-800/50" : "hover:bg-slate-50"} transition-colors border-b ${borderColor} last:border-b-0`}
-                style={{ animation: index < 3 ? "slideIn 200ms ease-out" : undefined }}
+                style={{
+                  animation: index < 3 ? "slideIn 200ms ease-out" : undefined,
+                }}
               >
-                <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${style.dot}`} />
+                <span
+                  className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${style.dot}`}
+                />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${textColor} truncate`}>{event.message}</p>
-                  <p className={`text-[10px] ${subTextColor} mt-0.5`}>{formatTimestamp(event.timestamp)}</p>
+                  <p className={`text-sm ${textColor} truncate`}>
+                    {event.message}
+                  </p>
+                  <p className={`text-[10px] ${subTextColor} mt-0.5`}>
+                    {formatTimestamp(event.timestamp)}
+                  </p>
                 </div>
               </div>
             );
@@ -575,13 +753,17 @@ function InfoSidebar({
   pinnedSections,
   onTogglePin,
 }) {
-  const sidebarBg = dark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
+  const sidebarBg = dark
+    ? "bg-slate-900 border-slate-800"
+    : "bg-white border-slate-200";
   const sectionBorder = dark ? "border-slate-800" : "border-slate-200";
 
   return (
     <aside
       className={`flex flex-col border-l transition-all duration-300 ease-in-out ${sidebarBg} ${
-        sidebarOpen ? "w-80 translate-x-0" : "w-0 translate-x-full opacity-0 overflow-hidden"
+        sidebarOpen
+          ? "w-80 translate-x-0"
+          : "w-0 translate-x-full opacity-0 overflow-hidden"
       }`}
     >
       <div className={`p-4 border-b ${sectionBorder}`}>
@@ -631,8 +813,12 @@ function InfoSidebar({
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <div className={`p-4 border-b ${sectionBorder}`}>
           <div className="flex items-center gap-2">
-            <Radio className={`w-4 h-4 ${dark ? "text-slate-500" : "text-slate-400"}`} />
-            <h3 className={`text-sm font-semibold uppercase tracking-wider ${dark ? "text-slate-500" : "text-slate-400"}`}>
+            <Radio
+              className={`w-4 h-4 ${dark ? "text-slate-500" : "text-slate-400"}`}
+            />
+            <h3
+              className={`text-sm font-semibold uppercase tracking-wider ${dark ? "text-slate-500" : "text-slate-400"}`}
+            >
               Live Activity
             </h3>
           </div>
@@ -648,9 +834,9 @@ export default function Monitoring() {
   const [engineStatus, setEngineStatus] = useState("running");
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [streamStatus, setStreamStatus] = useState("offline");
+  const [streamStatus, setStreamStatus] = useState("connecting");
   const [connectionStatus, setConnectionStatus] = useState("offline");
-  const [autoPlay, setAutoPlay] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
   const [cameraInfo, setCameraInfo] = useState({
     name: "Main Entrance",
     location: "Plant A",
@@ -671,7 +857,9 @@ export default function Monitoring() {
     stats: true,
   });
 
-  const pageBg = dark ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-900";
+  const pageBg = dark
+    ? "bg-slate-950 text-white"
+    : "bg-slate-100 text-slate-900";
 
   const handleEngineControl = async (action) => {
     setIsLoading(true);
@@ -709,7 +897,7 @@ export default function Monitoring() {
       const url = `${API_BASE}/api/status`;
       try {
         console.log("[Monitoring] Fetching status from:", url);
-        const res = await fetch(url, { mode: 'cors' });
+        const res = await fetch(url, { mode: "cors" });
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = await res.json();
         console.log("[Monitoring] Status response:", data);
@@ -725,7 +913,10 @@ export default function Monitoring() {
           status: data.camera_status || prev.status,
         }));
         if (autoPlay) {
-          setStreamStatus(data.stream_status || "live");
+          // If engine is running, assume stream is live
+          const isLive =
+            data.engine_status === "running" || data.stream_status === "live";
+          setStreamStatus(isLive ? "live" : "offline");
         }
       } catch (err) {
         console.error("[Monitoring] Status fetch error:", err);
@@ -811,11 +1002,16 @@ export default function Monitoring() {
     };
   }, []);
 
-  const resolutionText = useMemo(() => cameraInfo.resolution || "--", [cameraInfo.resolution]);
+  const resolutionText = useMemo(
+    () => cameraInfo.resolution || "--",
+    [cameraInfo.resolution],
+  );
   const fpsText = useMemo(() => cameraInfo.fps || "--", [cameraInfo.fps]);
 
   return (
-    <div className={`h-full flex flex-col ${pageBg} transition-colors duration-300`}>
+    <div
+      className={`h-full flex flex-col ${pageBg} transition-colors duration-300`}
+    >
       <MonitoringHeader
         dark={dark}
         connectionStatus={connectionStatus}
@@ -853,30 +1049,44 @@ export default function Monitoring() {
                     : "bg-white text-slate-600 border border-slate-200 hover:text-slate-900"
               }`}
             >
-              <div className={`w-2 h-2 rounded-full transition-colors ${autoPlay ? "bg-emerald-500" : "bg-slate-400"}`} />
+              <div
+                className={`w-2 h-2 rounded-full transition-colors ${autoPlay ? "bg-emerald-500" : "bg-slate-400"}`}
+              />
               Auto Play Live Streaming
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+            <div
+              className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Eye className="w-4 h-4 text-emerald-400" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Stream Status</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Stream Status
+                </p>
               </div>
               <p className="text-lg font-semibold capitalize">{streamStatus}</p>
             </div>
-            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+            <div
+              className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <ShieldAlert className="w-4 h-4 text-amber-400" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Violations</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Violations
+                </p>
               </div>
               <p className="text-lg font-semibold">{stats.violations}</p>
             </div>
-            <div className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}>
+            <div
+              className={`rounded-xl p-4 ${dark ? "bg-slate-800/50" : "bg-slate-50"}`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Compliance</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Compliance
+                </p>
               </div>
               <p className="text-lg font-semibold">{stats.compliance}%</p>
             </div>

@@ -20,7 +20,7 @@
  */
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
+const SOCKET_URL = "https://api.foodiserver.my.id";
 
 let socket = null;
 
