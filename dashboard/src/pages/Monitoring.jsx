@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   Play,
@@ -20,7 +20,12 @@ import {
   ChevronUp,
   Pin,
   Settings,
+  Users,
+  Gauge,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
+import { useSocket, useSocketEvent } from "../hooks/useSocket";
 
 const API_BASE = "https://api.foodiserver.my.id";
 
@@ -345,6 +350,7 @@ function MonitoringHeader({
   connectionStatus,
   engineStatus,
   sidebarOpen,
+  isSocketConnected,
   onToggleTheme,
   onToggleSidebar,
 }) {
@@ -396,6 +402,29 @@ function MonitoringHeader({
               <span className={`text-xs ${subTextColor} capitalize`}>
                 {engineStatus}
               </span>
+            </div>
+            <div
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                isSocketConnected
+                  ? dark
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-emerald-100 text-emerald-600"
+                  : dark
+                    ? "bg-slate-800 text-slate-500"
+                    : "bg-slate-100 text-slate-400"
+              }`}
+              title={
+                isSocketConnected
+                  ? "Real-time via Socket.IO"
+                  : "Fallback: REST polling"
+              }
+            >
+              {isSocketConnected ? (
+                <Wifi className="w-3 h-3" />
+              ) : (
+                <WifiOff className="w-3 h-3" />
+              )}
+              {isSocketConnected ? "Real-time" : "Polling"}
             </div>
           </div>
         </div>
@@ -640,6 +669,18 @@ function DetectionStats({ stats, dark }) {
           />
         </div>
       </div>
+      <StatItem
+        label="Active Tracks"
+        value={stats.activeTracks}
+        icon={Users}
+        color="text-violet-400"
+      />
+      <StatItem
+        label="FPS"
+        value={stats.fps}
+        icon={Gauge}
+        color="text-cyan-400"
+      />
     </div>
   );
 }
@@ -835,7 +876,6 @@ export default function Monitoring() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [streamStatus, setStreamStatus] = useState("connecting");
-  const [connectionStatus, setConnectionStatus] = useState("offline");
   const [autoPlay, setAutoPlay] = useState(true);
   const [cameraInfo, setCameraInfo] = useState({
     name: "Main Entrance",
@@ -849,6 +889,8 @@ export default function Monitoring() {
     violations: 0,
     valid: 0,
     compliance: 0,
+    fps: 0,
+    activeTracks: 0,
   });
   const [events, setEvents] = useState(MOCK_EVENTS);
   const [pinnedSections, setPinnedSections] = useState({
@@ -857,15 +899,80 @@ export default function Monitoring() {
     stats: true,
   });
 
+  const { isConnected, emit } = useSocket();
+  const connectionStatus = isConnected ? "online" : "offline";
+
   const pageBg = dark
     ? "bg-slate-950 text-white"
     : "bg-slate-100 text-slate-900";
 
+  // --- Helpers to map backend data to UI format ---
+
+  const mapStatsFromBackend = useCallback((data) => {
+    const totalValid = data.total_valid ?? data.valid ?? 0;
+    const totalViolations = data.total_pelanggaran ?? data.violations ?? 0;
+    const total = totalValid + totalViolations;
+    return {
+      detections: total,
+      violations: totalViolations,
+      valid: totalValid,
+      compliance: total > 0 ? Math.round((totalValid / total) * 100) : 0,
+      fps: data.fps ?? 0,
+      activeTracks: data.active_tracks ?? 0,
+    };
+  }, []);
+
+  const mapDetectionToEvent = useCallback((data) => {
+    const isViolation = data.status === "violation" || data.status === "pelanggaran";
+    return {
+      id: data.id ?? `${data.track_id}-${data.timestamp}`,
+      message: `${data.name || "Person"} — ${data.status || "detected"}`,
+      severity: isViolation ? "alert" : "info",
+      timestamp: data.timestamp || new Date().toISOString(),
+      photoPath: data.photo_path || null,
+    };
+  }, []);
+
+  // --- Socket event listeners ---
+
+  useSocketEvent("engine_status", (data) => {
+    if (data?.status) {
+      setEngineStatus(data.status);
+    }
+  });
+
+  useSocketEvent("stats_update", (data) => {
+    if (!data) return;
+    setStats(mapStatsFromBackend(data));
+    if (data.engine_status) {
+      setEngineStatus(data.engine_status);
+    }
+  });
+
+  useSocketEvent("detection_event", (data) => {
+    if (!data) return;
+    const newEvent = mapDetectionToEvent(data);
+    setEvents((prev) => [newEvent, ...prev].slice(0, 50));
+  });
+
+  useSocketEvent("log", (data) => {
+    if (data) {
+      console.log(`[Socket Log] [${data.level}] ${data.message}`);
+    }
+  });
+
+  // --- Engine control: prefer socket when connected, fallback to REST ---
+
   const handleEngineControl = async (action) => {
     setIsLoading(true);
     try {
-      await fetch(`${API_BASE}/api/engine/${action}`, { method: "POST" });
-      setEngineStatus(action === "stop" ? "stopped" : "running");
+      if (isConnected) {
+        emit("engine_command", { command: action });
+        setEngineStatus(action === "stop" ? "stopped" : "running");
+      } else {
+        await fetch(`${API_BASE}/api/engine/${action}`, { method: "POST" });
+        setEngineStatus(action === "stop" ? "stopped" : "running");
+      }
     } catch {
       setEngineStatus("error");
     } finally {
@@ -890,19 +997,21 @@ export default function Monitoring() {
     }));
   };
 
+  // --- REST polling with hybrid strategy ---
+  // When socket is connected: slow down polling (health check only).
+  // When socket is disconnected: poll at normal intervals as fallback.
+
   useEffect(() => {
     let isMounted = true;
+    const statusInterval = isConnected ? 30000 : 5000;
 
     const fetchStatus = async () => {
       const url = `${API_BASE}/api/status`;
       try {
-        console.log("[Monitoring] Fetching status from:", url);
         const res = await fetch(url, { mode: "cors" });
         if (!res.ok) throw new Error(`status ${res.status}`);
         const data = await res.json();
-        console.log("[Monitoring] Status response:", data);
         if (!isMounted) return;
-        setConnectionStatus("online");
         setEngineStatus(data.engine_status || engineStatus);
         setCameraInfo((prev) => ({
           ...prev,
@@ -913,16 +1022,13 @@ export default function Monitoring() {
           status: data.camera_status || prev.status,
         }));
         if (autoPlay) {
-          // If engine is running, assume stream is live
           const isLive =
             data.engine_status === "running" || data.stream_status === "live";
           setStreamStatus(isLive ? "live" : "offline");
         }
       } catch (err) {
         console.error("[Monitoring] Status fetch error:", err);
-        console.error("[Monitoring] API_BASE used:", API_BASE);
         if (!isMounted) return;
-        setConnectionStatus("offline");
         if (autoPlay) {
           setStreamStatus("offline");
         }
@@ -930,14 +1036,15 @@ export default function Monitoring() {
     };
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
+    const interval = setInterval(fetchStatus, statusInterval);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [engineStatus, autoPlay]);
+  }, [engineStatus, autoPlay, isConnected]);
 
   useEffect(() => {
+    if (isConnected) return;
     let isMounted = true;
 
     const fetchStats = async () => {
@@ -946,12 +1053,7 @@ export default function Monitoring() {
         if (!res.ok) throw new Error("stats");
         const data = await res.json();
         if (!isMounted) return;
-        setStats({
-          detections: data.detections ?? 0,
-          violations: data.violations ?? 0,
-          valid: data.valid ?? 0,
-          compliance: data.compliance ?? 0,
-        });
+        setStats(mapStatsFromBackend(data));
       } catch {
         if (!isMounted) return;
         setStats((prev) => ({
@@ -970,9 +1072,10 @@ export default function Monitoring() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [isConnected, mapStatsFromBackend]);
 
   useEffect(() => {
+    if (isConnected) return;
     let isMounted = true;
 
     const fetchEvents = async () => {
@@ -986,6 +1089,7 @@ export default function Monitoring() {
           message: event.message || event.description || "Detection event",
           severity: event.severity || "info",
           timestamp: event.timestamp || new Date(),
+          photoPath: event.photo_path || null,
         }));
         setEvents(mapped.slice(0, 20));
       } catch {
@@ -1000,7 +1104,7 @@ export default function Monitoring() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [isConnected]);
 
   const resolutionText = useMemo(
     () => cameraInfo.resolution || "--",
@@ -1017,6 +1121,7 @@ export default function Monitoring() {
         connectionStatus={connectionStatus}
         engineStatus={engineStatus}
         sidebarOpen={sidebarOpen}
+        isSocketConnected={isConnected}
         onToggleTheme={() => setDark((prev) => !prev)}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />
