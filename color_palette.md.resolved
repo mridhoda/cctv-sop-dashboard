@@ -1,0 +1,121 @@
+# 🎨 Color Palette — CCTV-SOP Dashboard
+
+> Dashboard saat ini menggunakan **Light Mode** untuk konten utama dan **Dark Mode** khusus untuk Sidebar. Berikut adalah daftar warna (Tailwind class & HEX code) yang sedang digunakan di aplikasi ([App.jsx](file:///d:/Projects/foodinesia/cctv-sop/dashboard/src/App.jsx)):
+
+---
+
+## 🏗️ Foundation (Base & Layout)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Background Halaman (Main)** | `bg-slate-50` | `#f8fafc` | Latar belakang seluruh dashboard |
+| **Background Halaman (Login)** | `bg-slate-100` | `#f1f5f9` | Latar belakang luar card login |
+| **Surface / Card** | `bg-white` | `#ffffff` | Background untuk card, modal, dan tabel |
+| **Border Card & Input** | `border-slate-200` | `#e2e8f0` | Garis tepi komponen utama |
+| **Divider / Separator** | `border-slate-100` | `#f1f5f9` | Garis pemisah antar seksi atau row tabel |
+| **Hover State (Row/Button)** | `bg-slate-50` | `#f8fafc` | Efek hover pada tabel atau card klik |
+| **Label Background** | `bg-slate-50` | `#f8fafc` | Background kotak info kecil / detail area |
+
+---
+
+## 🌑 Sidebar (Dark Theme)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Sidebar Background** | `bg-slate-900` | `#0f172a` | Latar belakang sidebar kiri |
+| **Sidebar Border** | `border-slate-800` | `#1e293b` | Garis pemisah dalam sidebar |
+| **Menu Text (Inactive)** | `text-slate-300` | `#cbd5e1` | Teks navigasi default |
+| **Menu Item (Active)** | `bg-slate-800` | `#1e293b` | Background menu saat sedang aktif (teks putih) |
+| **Kategori Label** | `text-slate-500` | `#64748b` | Teks untuk grup menu (Contoh: "MENU UTAMA") |
+
+---
+
+## ✏️ Typography (Teks)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Heading Utama** | `text-slate-900` | `#0f172a` | Judul halaman, judul card besar |
+| **Body Text (Highlight)** | `text-slate-800` | `#1e293b` | Teks data penting (cth: detail tabel) |
+| **Body Text (Umum)** | `text-slate-700` | `#334155` | Deskripsi, teks paragraf, nilai data |
+| **Teks Sekunder** | `text-slate-600` | `#475569` | Sub-judul, info tambahan |
+| **Muted Text / Caption** | `text-slate-500` | `#64748b` | Label form, caption kecil, teks non-kritis |
+| **Disabled / Icon Inactive**| `text-slate-400` | `#94a3b8` | Placeholder, icon yang tidak aktif |
+
+---
+
+## 🟢 Semantic: Success & Compliance (Keamanan/Patuh)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Background Icon (Pucat)** | `bg-emerald-100` | `#d1fae5` | Latar belakang icon success (ukuran besar) |
+| **Background Badge (Sangat Pucat)**| `bg-emerald-50` | `#ecfdf5` | Latar belakang pill/badge "Patuh" |
+| **Teks Angka Highlight** | `text-emerald-600` | `#059669` | Angka persentase kepatuhan (ex: 85.4%) |
+| **Teks Badge Bold** | `text-emerald-700` | `#047857` | Teks di dalam badge/pill |
+| **Status Dot (Online)** | `bg-emerald-500` | `#10b981` | Indikator titik hijau (kamera aktif) |
+| **Logo Accent (Sidebar)** | `text-emerald-400` | `#34d399` | Warna icon logo (ShieldCheck) di sidebar |
+| **Pie Chart (Patuh)** | *(Inline Style)* | `#10B981` | Warna grafik kepatuhan SOP |
+
+---
+
+## 🔴 Semantic: Danger & Violation (Pelanggaran/Bahaya)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Background Icon (Pucat)** | `bg-rose-100` | `#ffe4e6` | Latar belakang icon peringatan |
+| **Background Badge (Sangat Pucat)**| `bg-rose-50` | `#fff1f2` | Latar belakang pill/badge "Pelanggaran" |
+| **Teks Badge Bold** | `text-rose-700` | `#be123c` | Teks di dalam badge pelanggaran |
+| **Notification Dot** | `bg-rose-500` | `#f43f5e` | Titik merah notifikasi (bell) |
+| **Hover Logout (Sidebar)** | `bg-rose-900/20` | *(Alpha 20%)*| Background merah pudar saat hover tombol keluar |
+| **Pie Chart (Melanggar)**| *(Inline Style)* | `#EF4444` | Warna grafik tidak patuh (Red-500) |
+
+---
+
+## 🔵 Semantic: Primary Action (Tombol & Aksi Utama)
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Tombol Utama (Default)** | `bg-slate-900` | `#0f172a` | Tombol login, validasi (hitam gelap) |
+| **Tombol Utama (Hover)** | `hover:bg-slate-800` | `#1e293b` | Efek hover tombol utama |
+| **Akun Demo Icon BG** | `bg-blue-500` | `#3b82f6` | Icon user di halaman login demo |
+| **Akun Demo Card BG** | `bg-blue-50` | `#eff6ff` | Background card login demo admin |
+| **Akun Demo Border** | `border-blue-100` | `#dbeafe` | Border card login demo admin |
+| **Akun Demo Text** | `text-blue-900` | `#1e3a5f` | Judul akun demo admin |
+
+---
+
+## ⚠️ Semantic: Warning
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Warning / Idle Status** | `text-amber-500` | `#f59e0b` | Indikator status kamera "Idle" |
+
+---
+
+## 🪟 Modal & Overlays
+
+| Elemen | Tailwind Class | Hex Code | Keterangan |
+|---|---|---|---|
+| **Backdrop Modal** | `bg-slate-900/60` | `#0f172a` (60%)| Latar layar di bekalang modal popup |
+
+---
+
+### 📐 Rangkuman Tata Letak Visual
+
+```text
+┌────────────────────────────────────────────────────┐
+│ SIDEBAR (Gelap)         │ CONTENT AREA (Terang)    │
+│ bg: #0f172a             │ bg: #f8fafc / #f1f5f9    │
+│ text: #cbd5e1           │                          │
+│ active: #1e293b         │ ┌──────────────────────┐ │
+│ border: #1e293b         │ │ CARD (Putih)         │ │
+│                         │ │ bg: #ffffff          │ │
+│ 🟢 VisionGuard AI      │ │ border: #e2e8f0      │ │
+│                         │ │ heading: #0f172a     │ │
+│ ▸ Dashboard             │ │ body: #334155        │ │
+│ ▸ Live Monitoring       │ │ muted: #64748b       │ │
+│ ▸ Riwayat Insiden       │ │                      │ │
+│                         │ │ 🟢 #10b981 (Patuh)   │ │
+│ [👤 User] [🔔3]         │ │ 🔴 #f43f5e (Bahaya)  │ │
+│ [🚪 Keluar]             │ │ 🔵 #0f172a (Action)  │ │
+└─────────────────────────┴──────────────────────────┘
+```

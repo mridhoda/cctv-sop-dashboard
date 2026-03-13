@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Camera,
   Image,
@@ -9,131 +9,104 @@ import {
   CheckCircle,
   Calendar,
   FileText,
-} from 'lucide-react';
+  Loader2,
+} from "lucide-react";
+import { useEvents } from "../hooks/useEvents";
+import { exportEventsCSV } from "../services/events";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { useToast } from "../components/ui/Toast";
 
-// TODO: GET /api/reports for real photo list
-// TODO: GET /api/reports/{filename} for actual photos
-// TODO: GET /api/reports/export/csv for CSV download
-
-const mockReports = [
+// Fallback data for when API is unreachable
+const FALLBACK_REPORTS = [
   {
-    id: 'RPT001',
-    filename: 'RPT-2024-03-15-001.jpg',
-    timestamp: '2024-03-15 09:30:45',
-    location: 'Area Produksi A',
-    type: 'pelanggaran',
-    jenis: 'Operator tanpa helm',
+    id: "RPT001",
+    filename: "RPT-2024-03-15-001.jpg",
+    timestamp: "2024-03-15 09:30:45",
+    location: "Area Produksi A",
+    type: "pelanggaran",
+    jenis: "Operator tanpa helm",
     confidenceScore: 0.92,
   },
   {
-    id: 'RPT002',
-    filename: 'RPT-2024-03-15-002.jpg',
-    timestamp: '2024-03-15 10:15:20',
-    location: 'Area Parkir',
-    type: 'valid',
-    jenis: 'Verifikasi SOP Compliance',
+    id: "RPT002",
+    filename: "RPT-2024-03-15-002.jpg",
+    timestamp: "2024-03-15 10:15:20",
+    location: "Area Parkir",
+    type: "valid",
+    jenis: "Verifikasi SOP Compliance",
     confidenceScore: 0.88,
-  },
-  {
-    id: 'RPT003',
-    filename: 'RPT-2024-03-15-003.jpg',
-    timestamp: '2024-03-15 11:45:30',
-    location: 'Area Produksi B',
-    type: 'pelanggaran',
-    jenis: 'Area terlarang tanpa izin',
-    confidenceScore: 0.95,
-  },
-  {
-    id: 'RPT004',
-    filename: 'RPT-2024-03-15-004.jpg',
-    timestamp: '2024-03-15 13:20:15',
-    location: 'Kantor',
-    type: 'valid',
-    jenis: 'Kehadiran staff terverifikasi',
-    confidenceScore: 0.87,
-  },
-  {
-    id: 'RPT005',
-    filename: 'RPT-2024-03-15-005.jpg',
-    timestamp: '2024-03-15 14:55:00',
-    location: 'Area Produksi A',
-    type: 'pelanggaran',
-    jenis: 'Tidak memakai APD lengkap',
-    confidenceScore: 0.91,
-  },
-  {
-    id: 'RPT006',
-    filename: 'RPT-2024-03-15-006.jpg',
-    timestamp: '2024-03-15 15:30:45',
-    location: 'Gudang',
-    type: 'valid',
-    jenis: 'Aktivitas normal sesuai SOP',
-    confidenceScore: 0.89,
-  },
-  {
-    id: 'RPT007',
-    filename: 'RPT-2024-03-15-007.jpg',
-    timestamp: '2024-03-15 16:10:20',
-    location: 'Area Produksi C',
-    type: 'pelanggaran',
-    jenis: 'Protokol keselamatan diabaikan',
-    confidenceScore: 0.93,
-  },
-  {
-    id: 'RPT008',
-    filename: 'RPT-2024-03-15-008.jpg',
-    timestamp: '2024-03-15 17:25:30',
-    location: 'Ruang Istirahat',
-    type: 'valid',
-    jenis: 'Penggunaan fasilitas sesuai SOP',
-    confidenceScore: 0.86,
   },
 ];
 
 export default function Reports() {
-  const [filterType, setFilterType] = useState('ALL');
+  const [filterType, setFilterType] = useState("ALL");
   const [selectedReport, setSelectedReport] = useState(null);
+  const { addToast } = useToast();
 
-  const filtered = mockReports.filter((report) => {
-    if (filterType === 'ALL') return true;
-    if (filterType === 'PELANGGARAN') return report.type === 'pelanggaran';
-    if (filterType === 'VALID') return report.type === 'valid';
+  // Fetch reports (events with photos)
+  const {
+    data: apiData,
+    isLoading,
+    error,
+    refetch,
+  } = useEvents({ has_photo: true, limit: 50 });
+
+  const rawReports = Array.isArray(apiData)
+    ? apiData
+    : apiData?.data || FALLBACK_REPORTS;
+  const allReports = rawReports.map((r) => ({
+    id: r.id,
+    filename: r.filename || r.photo_path || `RPT-${r.id}.jpg`,
+    timestamp: r.timestamp || r.time || r.created_at || "—",
+    location: r.location || r.camera_name || "—",
+    type:
+      r.type ||
+      (r.status === "Valid" || r.status === "valid" ? "valid" : "pelanggaran"),
+    jenis: r.jenis || r.event_type || r.name || "—",
+    confidenceScore:
+      r.confidenceScore || r.confidence || r.confidence_score || 0,
+  }));
+
+  const filtered = allReports.filter((report) => {
+    if (filterType === "ALL") return true;
+    if (filterType === "PELANGGARAN") return report.type === "pelanggaran";
+    if (filterType === "VALID") return report.type === "valid";
     return true;
   });
 
-  const totalLaporan = mockReports.length;
-  const pelanggaran = mockReports.filter(r => r.type === 'pelanggaran').length;
-  const sopValid = mockReports.filter(r => r.type === 'valid').length;
+  const totalLaporan = allReports.length;
+  const pelanggaran = allReports.filter((r) => r.type === "pelanggaran").length;
+  const sopValid = allReports.filter((r) => r.type === "valid").length;
 
-  const handleExportCSV = () => {
-    // Simulate CSV export
-    const csvContent = [
-      ['ID', 'Filename', 'Timestamp', 'Location', 'Type', 'Jenis', 'Confidence Score'],
-      ...mockReports.map(r => [
-        r.id,
-        r.filename,
-        r.timestamp,
-        r.location,
-        r.type,
-        r.jenis,
-        r.confidenceScore.toFixed(2),
-      ]),
-    ]
-      .map(row => row.join(','))
-      .join('\n');
-
-    console.log('CSV Export:', csvContent);
-    alert('Export CSV dimulai - lihat console untuk detail');
+  const handleExportCSV = async () => {
+    try {
+      const blob = await exportEventsCSV({ has_photo: true });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reports-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      addToast({ type: "success", message: "Export CSV berhasil!" });
+    } catch {
+      addToast({ type: "error", message: "Gagal export CSV" });
+    }
   };
 
+  if (isLoading) return <LoadingSpinner message="Memuat laporan..." />;
+  if (error) return <ErrorMessage error={error} onRetry={refetch} />;
+
   return (
-    <div className="flex-1 bg-white overflow-auto">
+    <div className="flex-1 overflow-auto">
       {/* Header with Title and Button */}
-      <div className="sticky top-0 bg-white border-b border-slate-200 z-40">
-        <div className="px-8 py-6">
+      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-40">
+        <div className="py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Laporan & Bukti Foto</h1>
+              <h1 className="text-3xl font-bold text-slate-900">
+                Laporan & Bukti Foto
+              </h1>
               <p className="text-slate-600 text-sm mt-1">
                 Riwayat deteksi pelanggaran dan verifikasi kepatuhan SOP
               </p>
@@ -150,23 +123,33 @@ export default function Reports() {
           {/* Stats Bar */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <p className="text-slate-600 text-sm font-medium">Total Laporan</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{totalLaporan}</p>
+              <p className="text-slate-600 text-sm font-medium">
+                Total Laporan
+              </p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">
+                {totalLaporan}
+              </p>
             </div>
             <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
               <p className="text-rose-700 text-sm font-medium">Pelanggaran</p>
-              <p className="text-2xl font-bold text-rose-600 mt-1">{pelanggaran}</p>
+              <p className="text-2xl font-bold text-rose-600 mt-1">
+                {pelanggaran}
+              </p>
             </div>
             <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
               <p className="text-emerald-700 text-sm font-medium">SOP Valid</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">{sopValid}</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1">
+                {sopValid}
+              </p>
             </div>
             <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
               <div className="flex items-center gap-2">
                 <Calendar size={18} className="text-blue-600" />
                 <div>
                   <p className="text-blue-700 text-sm font-medium">Periode</p>
-                  <p className="text-sm font-bold text-blue-600 mt-1">Hari Ini</p>
+                  <p className="text-sm font-bold text-blue-600 mt-1">
+                    Hari Ini
+                  </p>
                 </div>
               </div>
             </div>
@@ -175,17 +158,17 @@ export default function Reports() {
           {/* Filter Tabs */}
           <div className="flex gap-2">
             {[
-              { label: 'SEMUA', value: 'ALL' },
-              { label: 'PELANGGARAN', value: 'PELANGGARAN' },
-              { label: 'SOP VALID', value: 'VALID' },
+              { label: "SEMUA", value: "ALL" },
+              { label: "PELANGGARAN", value: "PELANGGARAN" },
+              { label: "SOP VALID", value: "VALID" },
             ].map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setFilterType(tab.value)}
                 className={`px-6 py-2 rounded-lg font-medium text-sm transition ${
                   filterType === tab.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
                 {tab.label}
@@ -196,11 +179,13 @@ export default function Reports() {
       </div>
 
       {/* Photo Gallery Grid */}
-      <div className="px-8 py-6">
+      <div className="py-6">
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <Image size={48} className="mx-auto text-slate-300 mb-4" />
-            <p className="text-slate-500 font-medium">Tidak ada laporan untuk kategori ini</p>
+            <p className="text-slate-500 font-medium">
+              Tidak ada laporan untuk kategori ini
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -214,7 +199,10 @@ export default function Reports() {
                 <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-48 flex items-center justify-center border-b border-slate-200 relative group">
                   <Camera size={40} className="text-slate-500" />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
-                    <Image size={32} className="text-white opacity-0 group-hover:opacity-100 transition" />
+                    <Image
+                      size={32}
+                      className="text-white opacity-0 group-hover:opacity-100 transition"
+                    />
                   </div>
                 </div>
 
@@ -226,11 +214,17 @@ export default function Reports() {
 
                   <div className="space-y-2 mb-4 text-xs">
                     <div className="flex items-start gap-2">
-                      <Calendar size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                      <Calendar
+                        size={14}
+                        className="text-slate-400 mt-0.5 flex-shrink-0"
+                      />
                       <span className="text-slate-600">{report.timestamp}</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <FileText size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                      <FileText
+                        size={14}
+                        className="text-slate-400 mt-0.5 flex-shrink-0"
+                      />
                       <span className="text-slate-600">{report.location}</span>
                     </div>
                   </div>
@@ -239,17 +233,17 @@ export default function Reports() {
                   <div className="flex items-center justify-between">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                        report.type === 'pelanggaran'
-                          ? 'bg-rose-100 text-rose-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                        report.type === "pelanggaran"
+                          ? "bg-rose-100 text-rose-700"
+                          : "bg-emerald-100 text-emerald-700"
                       }`}
                     >
-                      {report.type === 'pelanggaran' ? (
+                      {report.type === "pelanggaran" ? (
                         <AlertTriangle size={12} />
                       ) : (
                         <CheckCircle size={12} />
                       )}
-                      {report.type === 'pelanggaran' ? 'Pelanggaran' : 'Valid'}
+                      {report.type === "pelanggaran" ? "Pelanggaran" : "Valid"}
                     </span>
                   </div>
                 </div>
@@ -265,7 +259,9 @@ export default function Reports() {
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full border border-slate-200 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-200 sticky top-0 bg-white">
-              <h2 className="text-xl font-bold text-slate-900">Detail Laporan</h2>
+              <h2 className="text-xl font-bold text-slate-900">
+                Detail Laporan
+              </h2>
               <button
                 onClick={() => setSelectedReport(null)}
                 className="text-slate-400 hover:text-slate-600"
@@ -285,13 +281,17 @@ export default function Reports() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-slate-600 text-sm font-medium mb-1">Filename</p>
+                    <p className="text-slate-600 text-sm font-medium mb-1">
+                      Filename
+                    </p>
                     <p className="text-slate-900 font-mono text-sm break-all">
                       {selectedReport.filename}
                     </p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-slate-600 text-sm font-medium mb-1">ID Laporan</p>
+                    <p className="text-slate-600 text-sm font-medium mb-1">
+                      ID Laporan
+                    </p>
                     <p className="text-slate-900 font-mono text-sm">
                       {selectedReport.id}
                     </p>
@@ -300,18 +300,28 @@ export default function Reports() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-slate-600 text-sm font-medium mb-1">Waktu</p>
-                    <p className="text-slate-900 text-sm">{selectedReport.timestamp}</p>
+                    <p className="text-slate-600 text-sm font-medium mb-1">
+                      Waktu
+                    </p>
+                    <p className="text-slate-900 text-sm">
+                      {selectedReport.timestamp}
+                    </p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-slate-600 text-sm font-medium mb-1">Lokasi</p>
-                    <p className="text-slate-900 text-sm">{selectedReport.location}</p>
+                    <p className="text-slate-600 text-sm font-medium mb-1">
+                      Lokasi
+                    </p>
+                    <p className="text-slate-900 text-sm">
+                      {selectedReport.location}
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-slate-600 text-sm font-medium mb-1">Jenis</p>
+                    <p className="text-slate-600 text-sm font-medium mb-1">
+                      Jenis
+                    </p>
                     <p className="text-slate-900 text-sm font-medium">
                       {selectedReport.jenis}
                     </p>
@@ -340,19 +350,19 @@ export default function Reports() {
                 <div className="pt-2">
                   <span
                     className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${
-                      selectedReport.type === 'pelanggaran'
-                        ? 'bg-rose-100 text-rose-700'
-                        : 'bg-emerald-100 text-emerald-700'
+                      selectedReport.type === "pelanggaran"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-emerald-100 text-emerald-700"
                     }`}
                   >
-                    {selectedReport.type === 'pelanggaran' ? (
+                    {selectedReport.type === "pelanggaran" ? (
                       <AlertTriangle size={16} />
                     ) : (
                       <CheckCircle size={16} />
                     )}
-                    {selectedReport.type === 'pelanggaran'
-                      ? 'Status: Pelanggaran'
-                      : 'Status: Sesuai SOP'}
+                    {selectedReport.type === "pelanggaran"
+                      ? "Status: Pelanggaran"
+                      : "Status: Sesuai SOP"}
                   </span>
                 </div>
               </div>

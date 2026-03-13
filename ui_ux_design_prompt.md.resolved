@@ -1,0 +1,632 @@
+# 🎨 One-Shot UI/UX Design Prompt — Foodinesia CCTV-SOP Dashboard
+
+> **Tujuan:** Prompt ini bisa diberikan ke AI design tool (v0, Cursor, Claude, dll) untuk menghasilkan desain UI/UX lengkap seluruh halaman dan fitur dashboard CCTV-SOP monitoring system.
+
+---
+
+## 📋 PROMPT
+
+```
+Desain UI/UX lengkap untuk "Foodinesia CCTV-SOP Dashboard" — sebuah web application dashboard untuk monitoring kepatuhan SOP (Standard Operating Procedure) di area produksi pabrik menggunakan sistem CCTV + AI (YOLOv8 object detection & face recognition).
+
+════════════════════════════════════════════
+KONTEKS PROYEK
+════════════════════════════════════════════
+
+Aplikasi ini digunakan oleh supervisor dan manajemen pabrik untuk:
+1. Memantau CCTV secara real-time dengan AI yang otomatis mendeteksi pelanggaran SOP (helm tidak dipakai, baju tidak dimasukkan, dll)
+2. Melihat riwayat insiden dan foto bukti pelanggaran
+3. Mengelola identitas staff (untuk face recognition)
+4. Mengatur konfigurasi sistem AI detection
+
+Tech Stack: React + Vite + TailwindCSS (frontend), Flask + Socket.IO (backend)
+Target User: Supervisor pabrik, manajemen, admin IT
+Device: Desktop-first (1920x1080), responsive ke tablet (1024px)
+Theme: Dark mode utama (slate-900 background), mewah, profesional, industrial-modern
+
+════════════════════════════════════════════
+DESIGN SYSTEM & TOKENS
+════════════════════════════════════════════
+
+COLOR PALETTE (wajib dipakai konsisten):
+- Background utama: #0f172a (slate-900)
+- Surface / Card: #1e293b (slate-800)
+- Border: #334155 (slate-700)
+- Text primary: #e2e8f0 (slate-200)
+- Text secondary: #94a3b8 (slate-400)
+- Text muted: #64748b (slate-500)
+- Accent sky (primary): #38bdf8
+- Success / emerald: #10b981
+- Warning / amber: #f59e0b
+- Danger / rose: #f43f5e
+- Info / cyan: #06b6d4
+- Violet (accent sekunder): #8b5cf6
+
+TYPOGRAPHY:
+- Font family: "Inter" atau "Segoe UI"
+- Heading: Bold, tracking tight
+- Body: Regular, 14-16px
+
+SPACING: 4px base unit, 8/12/16/24/32/48/64 scale
+BORDER RADIUS: 6px (cards), 20px (pills/badges), 4px (input)
+SHADOW: Subtle glow effects, tidak heavy drop shadow
+
+KOMPONEN VISUAL:
+- Card: Background #1e293b, border-left 3px colored accent, rounded-md
+- Badge/Chip: Rounded-full, light background + colored text + colored border
+- Button primary: Sky blue gradient, hover glow effect
+- Button danger: Rose gradient
+- Table: Striped rows, hover highlight, sticky header
+- Input: Dark background #0f172a, border slate-700, focus ring sky
+- Modal: Centered, backdrop blur, scale-in animation
+- Toast notification: Slide-in dari kanan atas
+
+════════════════════════════════════════════
+LAYOUT GLOBAL
+════════════════════════════════════════════
+
+SIDEBAR (kiri, collapsible):
+- Lebar: 260px expanded, 72px collapsed
+- Logo Foodinesia di atas
+- User info: avatar, nama, role badge (superadmin = sky, viewer = emerald)
+- Navigation menu items (dengan icon + label):
+  1. 🏠 Dashboard (overview)
+  2. 📹 Live Monitoring
+  3. 📋 Riwayat Insiden
+  4. 👤 Manajemen Identitas (superadmin only)
+  5. 📸 Bukti Foto / Laporan (superadmin only)
+  6. ⚙️ Pengaturan Sistem (superadmin only)
+- Active state: left border sky + background highlight
+- Bottom: Logout button + collapse toggle
+- Smooth expand/collapse animation
+
+TOPBAR / HEADER (atas):
+- Breadcrumb: halaman aktif
+- Search global (opsional)
+- Notification bell dengan badge count (jumlah pelanggaran baru)
+- User avatar quick menu
+
+CONTENT AREA:
+- Padding: 24px
+- Max-width: fluid (mengikuti layar)
+- Background: #0f172a
+
+════════════════════════════════════════════
+HALAMAN 0: LOGIN
+════════════════════════════════════════════
+
+LAYOUT: Centered form, split screen (kiri: illustration/branding, kanan: form)
+
+KIRI (50%):
+- Background gradient dark (slate-900 ke slate-800)
+- Logo Foodinesia besar
+- Tagline: "CCTV Monitoring & SOP Compliance System"
+- Subtle animated dots/grid pattern di background
+- Ilustrasi/icon CCTV camera + shield
+
+KANAN (50%):
+- Card login form di tengah
+- Title: "Masuk ke Dashboard"
+- Field:
+  ├── Username (icon: user)
+  ├── Password (icon: lock, toggle show/hide)
+  └── Tombol "Masuk" (full-width, sky gradient, hover glow)
+- "Lupa password?" link (text-sm, muted)
+- Error state: red border + shake animation + error message
+- Loading state: spinner di dalam tombol
+
+ROLE-BASED:
+- superadmin → akses semua menu
+- viewer → hanya Dashboard, Monitoring, Riwayat
+
+════════════════════════════════════════════
+HALAMAN 1: DASHBOARD HOME (Overview)
+════════════════════════════════════════════
+
+HEADER SECTION:
+- Title: "Dashboard Overview"
+- Subtitle: "Ringkasan monitoring hari ini"
+- Date range selector (hari ini / 7 hari / 30 hari)
+
+ROW 1 — METRIC CARDS (4 kartu horizontal):
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│ 📊 Total       │ │ 🚨 Insiden     │ │ ✅ Tingkat     │ │ 📹 Kamera      │
+│ Deteksi        │ │ Pelanggaran    │ │ Kepatuhan      │ │ Aktif          │
+│                │ │                │ │                │ │                │
+│ 1,248          │ │ 42             │ │ 85.4%          │ │ 3/4            │
+│ ↑12% vs kmrn  │ │ ↓5% vs kmrn   │ │ ──── bar ───── │ │ 1 offline      │
+└────────────────┘ └────────────────┘ └────────────────┘ └────────────────┘
+
+Masing-masing card:
+- Icon + accent color berbeda (sky, rose, emerald, amber)
+- Angka besar (32px, bold)
+- Trend indicator: arrow up/down + persentase perubahan
+- Mini sparkline chart (opsional)
+- Hover: subtle scale + shadow
+
+ROW 2 — 2 KOLOM:
+KIRI (60%) — COMPLIANCE PIE CHART:
+- Donut chart besar di tengah
+  - Hijau (emerald): SOP Valid (85%)
+  - Merah (rose): Pelanggaran (15%)
+- Angka persentase di tengah donut
+- Legend di bawah chart
+- Card title: "Tingkat Kepatuhan SOP"
+
+KANAN (40%) — INSIDEN TERBARU (Mini Table):
+- Title: "5 Insiden Terakhir"
+- Kolom: Waktu | Nama | Status | Lokasi
+- Status badge: merah (Pelanggaran), hijau (Valid)
+- Row hover highlight
+- Link "Lihat Semua →" ke halaman Riwayat
+
+ROW 3 — STATUS CCTV GRID:
+- Title: "Status CCTV & AI Deteksi"
+- Grid 2x2 atau 4 kolom kartu kamera:
+  ┌───────────────────┐
+  │ 📹 CCTV 01        │
+  │ Produksi A        │
+  │ ● Online          │ (titik hijau)
+  │ AI: Active        │ (badge emerald)
+  │ Insiden hari ini:3│
+  └───────────────────┘
+- Status: Online (green dot), Offline (red dot)
+- AI Detection State: Active (emerald), Idle (amber), Inactive (slate)
+
+════════════════════════════════════════════
+HALAMAN 2: LIVE MONITORING
+════════════════════════════════════════════
+
+LAYOUT: 2 kolom (70% video / 30% sidebar info)
+
+KOLOM KIRI — VIDEO STREAM PANEL:
+┌──────────────────────────────────────────┐
+│ [Header Bar]                             │
+│ ● Online  "LIVE" badge merah kedip       │
+│ Kamera: Ruang Produksi — Pabrik Eskala   │
+│──────────────────────────────────────────│
+│                                          │
+│         ┌──────────────────┐             │
+│         │                  │             │
+│         │  MJPEG STREAM    │             │
+│         │  LIVE VIDEO      │             │
+│         │  (16:9 aspect)   │             │
+│         │                  │             │
+│         └──────────────────┘             │
+│                                          │
+│ [Timestamp overlay kiri bawah]           │
+│ [Controls bar bawah]:                    │
+│   🔄 Rotate │ 📸 Snapshot │ 🖥️ Resolusi  │
+│   ▶️ Auto-play toggle                    │
+│──────────────────────────────────────────│
+│ [Quick Stats - 3 mini cards]             │
+│ Stream: 🟢 Live │ Violations: 24 │ 92%  │
+└──────────────────────────────────────────┘
+
+KOMPONEN VIDEO:
+- Aspect ratio 16:9, rounded corners
+- LIVE badge: merah dengan animasi pulse/blink
+- Saat offline: placeholder gradient + "Camera Offline" + camera icon
+- Saat loading: skeleton shimmer
+- Controls bar: icon buttons dengan tooltip
+- Resolution selector: dropdown 480p/720p/1080p/1440p
+
+KOLOM KANAN — SIDEBAR INFO:
+
+SECTION 1: ENGINE CONTROL (superadmin only)
+┌────────────────────────┐
+│ 🎛️ Engine Control      │
+│ Status: ● Running      │ (green pulse)
+│                        │
+│ [▶ Start] [⏹ Stop]    │ (toggle buttons)
+│ [🔄 Restart]           │
+└────────────────────────┘
+- Status indicator: Running (green), Stopped (red), Starting (amber pulse)
+- Tombol disabled berdasarkan state (tidak bisa start kalau sudah running)
+- Konfirmasi dialog saat Stop/Restart
+
+SECTION 2: DETECTION STATS
+┌────────────────────────┐
+│ 📊 Detection Stats     │
+│                        │
+│ Detections    320      │ (sky)
+│ Violations     24      │ (rose)
+│ Valid SOP     296      │ (emerald)
+│ Compliance    92%      │ (progress bar emerald)
+│ Active Tracks   5      │ (cyan)
+│ FPS            30      │ (amber)
+└────────────────────────┘
+- Setiap stat: label kiri, angka kanan, colored accent
+- Compliance punya progress bar horizontal
+- Update real-time via Socket.IO (angka berubah dengan fade animation)
+
+SECTION 3: CAMERA INFO
+┌────────────────────────┐
+│ 📷 Camera Info         │
+│ Nama: Ruang Produksi   │
+│ Lokasi: Pabrik Eskala  │
+│ Status: ● Online       │
+│ Resolusi: 1080p        │
+│ FPS: 30                │
+└────────────────────────┘
+
+SECTION 4: ACTIVITY FEED (scrollable)
+┌────────────────────────┐
+│ ⚡ Activity Feed  (12) │
+│────────────────────────│
+│ 🔴 Pelanggaran SOP     │
+│    Budi - 10:05:23     │
+│ 🟢 Valid SOP           │
+│    Andi - 10:01:15     │
+│ 🟢 Valid SOP           │
+│    Sari - 09:52:10     │
+│ ...auto-scroll...      │
+└────────────────────────┘
+- Event baru: slide-in animation dari atas
+- 3 event terbaru: highlight background subtle
+- Warna: merah untuk pelanggaran, hijau untuk valid
+- Auto-scroll ke event terbaru
+- Counter badge di header
+
+════════════════════════════════════════════
+HALAMAN 3: RIWAYAT INSIDEN
+════════════════════════════════════════════
+
+HEADER:
+- Title: "Riwayat Insiden"
+- Subtitle: "Semua kejadian deteksi AI"
+
+FILTER BAR (horizontal):
+┌──────────────────────────────────────────────────────┐
+│ [Tabs: Semua | Pelanggaran | Valid]                  │
+│ [🔍 Search: nama, lokasi, jenis...]  [📅 Date Range]│
+│ [Export CSV ↓]                                       │
+└──────────────────────────────────────────────────────┘
+- Tab filter: pill-style, active = sky background
+- Search: input dengan icon search, debounced
+- Date range picker
+- Export CSV: button outline, download icon
+
+DATA TABLE:
+┌─────┬──────────────┬────────────┬──────────────────┬──────────────┬───────────┬─────────┐
+│ No  │ Waktu        │ Nama Staff │ Jenis            │ Lokasi       │ Status    │ Aksi    │
+├─────┼──────────────┼────────────┼──────────────────┼──────────────┼───────────┼─────────┤
+│ 1   │ 10:05:23     │ Budi S.    │ Helm Tidak Pakai │ Produksi A   │ 🔴 Plggrn│ 👁 🖼  │
+│ 2   │ 10:01:15     │ Andi W.    │ SOP Lengkap      │ Produksi B   │ 🟢 Valid │ 👁 🖼  │
+│ ... │              │            │                  │              │          │         │
+└─────┴──────────────┴────────────┴──────────────────┴──────────────┴───────────┴─────────┘
+
+Table features:
+- Striped rows (alternating background)
+- Hover: row highlight
+- Status column: Badge/chip merah atau hijau
+- Aksi: icon button "Lihat Detail" (mata) + "Lihat Foto" (gambar)
+- Sortable columns (klik header)
+- Responsive: horizontal scroll di mobile
+
+PAGINATION (bawah):
+- Server-side pagination
+- "Menampilkan 1-10 dari 248 insiden"
+- Previous/Next buttons + page numbers
+- Items per page selector (5/10/25/50)
+
+DETAIL MODAL (klik row):
+┌───────────────────────────────────────┐
+│ ✕                                     │
+│ 📋 Detail Insiden #143                │
+│───────────────────────────────────────│
+│ ┌─────────────┐  Waktu: 10:05:23     │
+│ │             │  Nama: Budi Santoso   │
+│ │  FOTO BUKTI │  Lokasi: Produksi A   │
+│ │  (klik zoom)│  Status: 🔴 Plggrn   │
+│ │             │  Jenis: Helm Tdk Pkei │
+│ └─────────────┘  Confidence: 94.2%    │
+│                                       │
+│ 🤖 Analisis AI:                       │
+│ "Terdeteksi 1 orang tanpa helm di     │
+│  area produksi. Confidence 94.2%.     │
+│  Rekomendasi: tegur langsung."        │
+│                                       │
+│ Track ID: TRK-00143                   │
+│───────────────────────────────────────│
+│ [Tutup]                               │
+└───────────────────────────────────────┘
+- Foto bukti besar di kiri (klik untuk zoom/lightbox)
+- Detail info di kanan
+- Confidence score: progress bar dengan warna (tinggi=hijau, rendah=merah)
+- AI description: card terpisah dengan icon robot
+
+════════════════════════════════════════════
+HALAMAN 4: MANAJEMEN IDENTITAS (superadmin)
+════════════════════════════════════════════
+
+HEADER:
+- Title: "Manajemen Identitas Staff"
+- Subtitle: "Kelola data wajah karyawan untuk face recognition"
+- Button: "+ Tambah Identitas" (sky, kanan atas)
+
+SEARCH & FILTER:
+- Search by nama
+- Filter by status (Active / Inactive / Semua)
+
+GRID CARDS (kartu identitas, grid 3-4 kolom):
+┌────────────────────┐
+│    ┌──────────┐    │
+│    │  FOTO    │    │
+│    │  AVATAR  │    │
+│    │  (bulat) │    │
+│    └──────────┘    │
+│                    │
+│  Budi Santoso      │ (nama, bold)
+│  Operator Mesin    │ (jabatan, muted)
+│  ID: EMP001        │ (badge)
+│                    │
+│  Status: ● Active  │ (green dot)
+│  Encoded: ✅       │ (atau ❌ belum)
+│  Terdaftar: 15 Jan │
+│                    │
+│  [🧠 Encode] [🗑️]  │
+└────────────────────┘
+
+Card features:
+- Avatar bulat besar di atas (placeholder jika belum upload foto)
+- Nama bold, jabatan muted
+- Employee ID: monospace badge
+- Status dot: hijau (Active), abu (Inactive)
+- Encoding status: checkmark atau cross
+- Tombol "Encode": trigger face encoding (loading spinner saat proses)
+- Tombol "Delete": icon trash, konfirmasi dialog
+
+TAMBAH IDENTITAS MODAL:
+┌───────────────────────────────────────┐
+│ ✕                                     │
+│ 👤 Tambah Identitas Baru             │
+│───────────────────────────────────────│
+│                                       │
+│ ┌─────────────┐                       │
+│ │  DROP ZONE  │  Seret foto wajah     │
+│ │  📷 Upload  │  atau klik untuk      │
+│ │             │  pilih file            │
+│ └─────────────┘  Max 5MB, JPEG/PNG    │
+│                                       │
+│ Nama Lengkap:    [________________]   │
+│ Jabatan:         [________________]   │
+│ ID Karyawan:     [________________]   │
+│                                       │
+│ [Batal]              [Simpan]         │
+└───────────────────────────────────────┘
+
+- Upload foto: drag & drop zone dengan preview
+- Validasi: nama wajib, ID karyawan unique, file max 5MB
+- Success: toast notification + card muncul di grid
+- Error: inline error messages merah
+
+════════════════════════════════════════════
+HALAMAN 5: BUKTI FOTO / LAPORAN (superadmin)
+════════════════════════════════════════════
+
+HEADER:
+- Title: "Laporan & Bukti Foto"
+- Subtitle: "Galeri foto hasil deteksi AI"
+- Button: "Export CSV ↓" (outline)
+
+FILTER TABS:
+[Semua] [Pelanggaran] [SOP Valid]
+(pill-style, active state sky background)
+
+PHOTO GALLERY GRID (3-4 kolom masonry):
+┌────────────────────┐
+│ ┌──────────────┐   │
+│ │              │   │
+│ │  FOTO BUKTI  │   │
+│ │  (thumbnail) │   │
+│ │              │   │
+│ └──────────────┘   │
+│                    │
+│ 🔴 Pelanggaran     │ (badge status)
+│ Helm Tdk Dipakai   │ (jenis)
+│ Produksi A         │ (lokasi)
+│ 10:05 - 10 Mar     │ (timestamp)
+│                    │
+│ Confidence: ████░ 94% │ (mini bar)
+└────────────────────┘
+
+LIGHTBOX MODAL (klik foto):
+┌───────────────────────────────────────────┐
+│ ← Prev                           Next → │
+│                                           │
+│ ┌───────────────────────────────────────┐ │
+│ │                                       │ │
+│ │           FOTO BUKTI BESAR            │ │
+│ │           (full resolution)           │ │
+│ │                                       │ │
+│ └───────────────────────────────────────┘ │
+│                                           │
+│ 📋 Detail Laporan                        │
+│ Status: 🔴 Pelanggaran                   │
+│ Jenis: Helm Tidak Dipakai                │
+│ Lokasi: Produksi A                       │
+│ Waktu: 10 Mar 2026, 10:05:23            │
+│ Confidence: ██████████░ 94.2%            │
+│                                           │
+│ [Tutup]                                   │
+└───────────────────────────────────────────┘
+- Navigasi prev/next
+- Foto full-size dengan zoom capability
+- Detail di bawah foto
+- Confidence bar: hijau (>80%), amber (50-80%), merah (<50%)
+
+════════════════════════════════════════════
+HALAMAN 6: PENGATURAN SISTEM (superadmin)
+════════════════════════════════════════════
+
+LAYOUT: Form sections vertikal, grouped by category
+
+HEADER:
+- Title: "Pengaturan Sistem"
+- Subtitle: "Konfigurasi AI Engine & streaming"
+- Button: "Simpan Perubahan" (sky, kanan atas) + "Reset Default" (outline)
+
+SECTION 1: KAMERA & SUMBER VIDEO
+┌───────────────────────────────────────┐
+│ 📹 Kamera & Sumber Video             │
+│───────────────────────────────────────│
+│ Sumber Kamera (RTSP URL / index):    │
+│ [rtsp://192.168.1.100/stream_______] │
+│                                       │
+│ Durasi Konfirmasi Deteksi (detik):   │
+│ [3_______] ← input number            │
+│                                       │
+│ Cooldown Re-alert (menit):           │
+│ [5_______] ← input number            │
+└───────────────────────────────────────┘
+
+SECTION 2: AI DETECTION THRESHOLD
+┌───────────────────────────────────────┐
+│ 🤖 AI Detection Threshold            │
+│───────────────────────────────────────│
+│ Confidence Deteksi Orang:            │
+│ ────●──────────── 0.65               │ ← range slider
+│                                       │
+│ Confidence Deteksi SOP:              │
+│ ──────●────────── 0.70               │ ← range slider
+│                                       │
+│ Threshold Jarak Wajah:               │
+│ ───●─────────────  0.45              │ ← range slider
+└───────────────────────────────────────┘
+- Slider dengan value display
+- Tooltip penjelasan singkat per field
+- Range: 0.0 - 1.0
+
+SECTION 3: SERVER & STREAMING
+┌───────────────────────────────────────┐
+│ 🖥️ Server & Streaming               │
+│───────────────────────────────────────│
+│ Server FPS:                          │
+│ [30______] ← input number (1-60)     │
+│                                       │
+│ Kualitas JPEG Stream:                │
+│ [85______] ← input number (1-100)    │
+│ atau slider                          │
+└───────────────────────────────────────┘
+
+SECTION 4: NOTIFIKASI TELEGRAM
+┌───────────────────────────────────────┐
+│ 📱 Notifikasi Telegram               │
+│───────────────────────────────────────│
+│ Aktifkan Notifikasi:                 │
+│ [Toggle Switch ●───]  Nonaktif       │
+│                                       │
+│ Bot Token:                           │
+│ [●●●●●●●●●●●●●●●___] ← password fld │
+│                                       │
+│ Chat ID:                             │
+│ [-1001234567890_____]                │
+│                                       │
+│ [🧪 Kirim Pesan Test]                │
+└───────────────────────────────────────┘
+- Toggle switch untuk enable/disable
+- Bot token: password field dengan show/hide toggle
+- "Kirim Pesan Test" button untuk verifikasi koneksi
+
+FOOTER ACTIONS:
+┌───────────────────────────────────────┐
+│ [Reset ke Default]     [💾 Simpan]   │
+└───────────────────────────────────────┘
+- Save: loading spinner → success toast "Konfigurasi berhasil disimpan"
+- Reset: konfirmasi dialog → restore semua ke default
+- Unsaved changes: warning banner kuning di atas form
+
+════════════════════════════════════════════
+STATE HANDLING (SEMUA HALAMAN)
+════════════════════════════════════════════
+
+LOADING STATE:
+- Skeleton shimmer (bukan spinner) untuk cards, table rows, charts
+- Pulse animation abu-abu
+
+EMPTY STATE:
+- Ilustrasi/icon besar + teks
+- Contoh: "Belum ada insiden hari ini" + icon clipboard kosong
+- CTA button jika applicable
+
+ERROR STATE:
+- Red banner di atas content
+- Icon warning + pesan error + tombol retry
+- "Gagal memuat data. Coba lagi."
+
+REAL-TIME INDICATOR:
+- Titik hijau berkedip di sidebar = Socket.IO connected
+- Titik merah = disconnected, auto-reconnecting
+- Subtle pulse animation saat data baru masuk
+
+TOAST NOTIFICATIONS:
+- Slide-in dari kanan atas
+- Tipe: success (emerald), error (rose), warning (amber), info (sky)
+- Auto-dismiss 5 detik
+- Stack max 3
+
+RESPONSIVE BREAKPOINTS:
+- Desktop: ≥1280px (full layout)
+- Tablet: 768-1279px (sidebar collapsed, grid 2 kolom)
+- Mobile: <768px (hamburger menu, stack layout, 1 kolom)
+
+════════════════════════════════════════════
+ANIMASI & MICRO-INTERACTIONS
+════════════════════════════════════════════
+
+- Page transition: fade-in 200ms ease-out
+- Card hover: translateY(-2px) + shadow increase
+- Button click: scale(0.98) + release
+- Modal: backdrop fade-in + content scale from 0.95
+- Sidebar expand/collapse: width transition 200ms
+- Number counter: count-up animation saat pertama load
+- Activity feed: new item slide-in dari atas
+- Status dot: pulse animation untuk "online" / "running"
+- Tab switch: underline slide transition
+- Toggle switch: smooth slide + color change
+
+════════════════════════════════════════════
+NAVIGASI & USER FLOW
+════════════════════════════════════════════
+
+Login → Dashboard Home (default landing)
+       ├→ Live Monitoring
+       ├→ Riwayat Insiden → Detail Modal
+       ├→ Manajemen Identitas → Add Modal → Encode
+       ├→ Bukti Foto → Lightbox Modal
+       └→ Pengaturan Sistem → Save/Reset
+
+Sidebar: selalu visible (collapsible), highlight halaman aktif
+Breadcrumb: di topbar, menunjukkan posisi current page
+Notification bell: klik → dropdown list pelanggaran baru → klik item → ke detail
+
+════════════════════════════════════════════
+ROLE PERMISSIONS VISUAL
+════════════════════════════════════════════
+
+SUPERADMIN:
+- Sees all 6 menu items in sidebar
+- Can access Engine Control di Monitoring
+- Can CRUD Identities
+- Can access Settings
+- Can export data
+
+VIEWER:
+- Sees only: Dashboard, Monitoring, Riwayat
+- NO Engine Control buttons
+- NO delete/edit actions
+- Read-only view of data
+- Menu items hidden (bukan disabled)
+
+Desainkan semua halaman di atas dengan konsistensi visual yang tinggi, 
+feel premium/enterprise-grade, dan perhatian detail pada setiap state 
+(loading, empty, error, success). Gunakan color palette yang sudah ditentukan. 
+Prioritaskan dark mode yang nyaman dilihat dalam durasi lama (untuk supervisor 
+yang memantau sepanjang shift).
+```
+
+---
+
+> [!TIP]
+> Prompt ini siap copy-paste ke tool design AI seperti **v0.dev**, **Claude Artifacts**, **Cursor**, atau **Figma AI**. Sesuaikan bagian tertentu jika ada fitur yang berubah.

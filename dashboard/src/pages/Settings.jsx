@@ -1,512 +1,406 @@
-import React, { useState } from 'react';
-import {
-  Settings as SettingsIcon,
-  Camera,
-  Cpu,
-  Server,
-  Bell,
-  Save,
-  RotateCcw,
-  Check,
-  Sliders,
-  Wifi,
-  X,
-  AlertCircle,
-} from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { AlertTriangle, Bot, Save, RotateCcw } from "lucide-react";
+import { useConfig, useUpdateConfig } from "../hooks/useConfig";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { useToast } from "../components/ui/Toast";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Toggle from "../components/ui/Toggle";
+
+const DEFAULT_CONFIG = {
+  camera_source: "0",
+  detection_duration: 3,
+  cooldown_minutes: 5,
+  conf_person: 0.65,
+  conf_sop: 0.7,
+  face_distance_threshold: 0.45,
+  server_fps: 30,
+  server_quality: 85,
+  telegram_enabled: false,
+  telegram_bot_token: "",
+  telegram_chat_id: "",
+  enable_face_recognition: false,
+};
+
+// Convert 0-1 float to 0-100 integer for slider
+const toSliderValue = (val) => Math.round(val * 100);
+const fromSliderValue = (val) => val / 100;
+
+function SliderField({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  displayValue,
+}) {
+  return (
+    <div className="group">
+      <div className="mb-3 flex items-center justify-between text-sm">
+        <span className="font-medium text-slate-600">{label}</span>
+        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+          {displayValue ?? `0.${value}`}
+        </span>
+      </div>
+      <div className="relative h-2 rounded-full bg-slate-200">
+        <div
+          className="absolute h-full rounded-full bg-slate-900 transition-all duration-200"
+          style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="absolute inset-0 h-2 w-full cursor-pointer opacity-0 z-10"
+        />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-200"
+          style={{ left: `${((value - min) / (max - min)) * 100}%` }}
+        >
+          <div className="h-5 w-5 -translate-x-1/2 rounded-full border-2 border-slate-900 bg-white shadow-md shadow-slate-300 transition-transform group-hover:scale-110" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsInput({
+  label,
+  value,
+  type = "text",
+  onChange,
+  disabled,
+  placeholder,
+}) {
+  if (onChange) {
+    return (
+      <div>
+        <p className="mb-2 text-sm font-bold text-slate-700">{label}</p>
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="mb-2 text-sm font-bold text-slate-700">{label}</p>
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-500 font-medium">
+        {value}
+      </div>
+    </div>
+  );
+}
 
 export default function Settings() {
-  // TODO: GET /api/config to load current config
-  const [config, setConfig] = useState({
-    // Section 1: Kamera & Sumber Video
-    camera_source: '0',
-    detection_duration: 3,
-    cooldown_minutes: 5,
-    
-    // Section 2: AI Detection Threshold
-    conf_person: 0.65,
-    conf_sop: 0.70,
-    face_distance_threshold: 0.45,
-    
-    // Section 3: Server & Streaming
-    server_fps: 30,
-    server_quality: 85,
-    
-    // Section 4: Notifikasi
-    telegram_enabled: false,
-    telegram_bot_token: '',
-    telegram_chat_id: '',
+  const { data: apiConfig, isLoading, error, refetch } = useConfig();
+  const updateConfig = useUpdateConfig();
+  const { addToast } = useToast();
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const isSaving = updateConfig.isPending;
+
+  // Track if config has been modified
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Face Recognition local toggle
+  const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(() => {
+    return localStorage.getItem("faceRecognitionEnabled") === "true";
   });
 
-  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Handle input changes for text and number inputs
-  const handleInputChange = (field, value) => {
-    setConfig((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  // Handle range slider changes
-  const handleRangeChange = (field, value) => {
-    setConfig((prev) => ({
-      ...prev,
-      [field]: parseFloat(value),
-    }));
-  };
-
-  // Handle toggle switch
-  const handleToggle = (field) => {
-    setConfig((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }));
-  };
-
-  // Save configuration
-  const handleSaveConfig = async () => {
-    setIsSaving(true);
-    // TODO: PUT /api/config to save config
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setShowSuccessBanner(true);
-      setTimeout(() => setShowSuccessBanner(false), 4000);
-    } finally {
-      setIsSaving(false);
+  // Sync local state with API data on load
+  useEffect(() => {
+    if (apiConfig) {
+      const loaded = apiConfig.data || apiConfig;
+      setConfig((prev) => ({ ...prev, ...loaded }));
+      setHasChanges(false);
+      if (loaded.enable_face_recognition !== undefined) {
+        setFaceRecognitionEnabled(!!loaded.enable_face_recognition);
+        localStorage.setItem(
+          "faceRecognitionEnabled",
+          String(!!loaded.enable_face_recognition),
+        );
+      }
     }
+  }, [apiConfig]);
+
+  const handleInputChange = (field, value) => {
+    setConfig((prev) => ({ ...prev, [field]: value }));
+    setHasChanges(true);
   };
 
-  // Reset to default values
-  const handleReset = () => {
-    setConfig({
-      camera_source: '0',
-      detection_duration: 3,
-      cooldown_minutes: 5,
-      conf_person: 0.65,
-      conf_sop: 0.70,
-      face_distance_threshold: 0.45,
-      server_fps: 30,
-      server_quality: 85,
-      telegram_enabled: false,
-      telegram_bot_token: '',
-      telegram_chat_id: '',
+  const handleRangeChange = (field, value) => {
+    setConfig((prev) => ({ ...prev, [field]: fromSliderValue(value) }));
+    setHasChanges(true);
+  };
+
+  const handleToggle = (field) => {
+    setConfig((prev) => {
+      const newVal = !prev[field];
+      return { ...prev, [field]: newVal };
+    });
+    setHasChanges(true);
+  };
+
+  const handleFaceRecognitionToggle = (enabled) => {
+    setFaceRecognitionEnabled(enabled);
+    localStorage.setItem("faceRecognitionEnabled", String(enabled));
+    setConfig((prev) => ({
+      ...prev,
+      enable_face_recognition: enabled ? 1 : 0,
+    }));
+    setHasChanges(true);
+    addToast({
+      type: enabled ? "success" : "info",
+      message: enabled
+        ? "Fitur Face Recognition diaktifkan!"
+        : "Fitur Face Recognition dinonaktifkan.",
     });
   };
 
+  const handleSaveConfig = () => {
+    updateConfig.mutate(config, {
+      onSuccess: () => {
+        addToast({
+          type: "success",
+          message: "Konfigurasi berhasil disimpan!",
+        });
+        setHasChanges(false);
+      },
+      onError: (err) => {
+        addToast({
+          type: "error",
+          message: err.response?.data?.message || "Gagal menyimpan konfigurasi",
+        });
+      },
+    });
+  };
+
+  const handleReset = () => {
+    setConfig({ ...DEFAULT_CONFIG });
+    setFaceRecognitionEnabled(false);
+    localStorage.setItem("faceRecognitionEnabled", "false");
+    setHasChanges(true);
+    addToast({ type: "info", message: "Pengaturan dikembalikan ke default." });
+  };
+
+  if (isLoading) return <LoadingSpinner message="Memuat konfigurasi..." />;
+  if (error) return <ErrorMessage error={error} onRetry={refetch} />;
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="px-8 py-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-slate-900 p-2.5 rounded-lg text-white">
-              <SettingsIcon size={24} />
-            </div>
-            <h1 className="text-3xl font-bold text-slate-900">System Settings</h1>
-          </div>
-          <p className="text-slate-500 ml-11">Konfigurasi sistem CCTV SOP Compliance Detection</p>
+    <div className="space-y-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            Pengaturan Sistem
+          </h2>
+          <p className="mt-1 text-slate-500">
+            Konfigurasi AI Engine & streaming.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={handleReset}>
+            <RotateCcw className="h-4 w-4" />
+            Reset Default
+          </Button>
+          <Button onClick={handleSaveConfig} disabled={isSaving || !hasChanges}>
+            {isSaving ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Menyimpan...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Simpan Perubahan
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Success Banner */}
-      {showSuccessBanner && (
-        <div className="fixed top-8 right-8 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-lg p-4 flex items-center gap-3 z-50 animate-fade-in">
-          <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
-            <Check size={20} />
+      {/* ── Unsaved warning ── */}
+      {hasChanges && (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+          <div className="flex items-start gap-3 text-sm text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <p>
+              Ada perubahan yang belum disimpan. Simpan konfigurasi untuk
+              menerapkan ke backend Flask + Socket.IO.
+            </p>
           </div>
-          <div>
-            <p className="font-bold text-emerald-900">Konfigurasi Tersimpan</p>
-            <p className="text-sm text-emerald-700">Semua perubahan telah berhasil disimpan ke sistem.</p>
-          </div>
-          <button
-            onClick={() => setShowSuccessBanner(false)}
-            className="ml-4 text-emerald-600 hover:text-emerald-700 transition"
-          >
-            <X size={18} />
-          </button>
         </div>
       )}
 
-      {/* Content */}
-      <div className="px-8 py-8 max-w-6xl">
-        <div className="space-y-8">
-          {/* ========== SECTION 1: Kamera & Sumber Video ========== */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-transparent px-6 py-5 border-b border-slate-100 flex items-center gap-3">
-              <div className="bg-slate-900 p-2.5 rounded-lg text-white">
-                <Camera size={20} />
-              </div>
+      {/* ── Settings grid ── */}
+      <div className="grid gap-6 2xl:grid-cols-2">
+        {/* Camera & Video Source */}
+        <Card
+          title="Kamera & Sumber Video"
+          subtitle="RTSP source dan timing deteksi"
+        >
+          <div className="space-y-4">
+            <SettingsInput
+              label="Sumber Kamera"
+              value={config.camera_source}
+              onChange={(val) => handleInputChange("camera_source", val)}
+            />
+            <SettingsInput
+              label="Durasi Konfirmasi Deteksi (detik)"
+              value={config.detection_duration.toString()}
+              onChange={(val) =>
+                handleInputChange("detection_duration", Number(val))
+              }
+            />
+            <SettingsInput
+              label="Cooldown Re-alert (menit)"
+              value={config.cooldown_minutes.toString()}
+              onChange={(val) =>
+                handleInputChange("cooldown_minutes", Number(val))
+              }
+            />
+          </div>
+        </Card>
+
+        {/* AI Detection Threshold */}
+        <Card
+          title="AI Detection Threshold"
+          subtitle="Slider confidence dan jarak wajah"
+        >
+          <div className="space-y-5">
+            <SliderField
+              label="Confidence Deteksi Orang"
+              value={toSliderValue(config.conf_person)}
+              onChange={(val) => handleRangeChange("conf_person", val)}
+              displayValue={config.conf_person.toFixed(2)}
+            />
+            <SliderField
+              label="Confidence Deteksi SOP"
+              value={toSliderValue(config.conf_sop)}
+              onChange={(val) => handleRangeChange("conf_sop", val)}
+              displayValue={config.conf_sop.toFixed(2)}
+            />
+            <SliderField
+              label="Threshold Jarak Wajah"
+              value={toSliderValue(config.face_distance_threshold)}
+              onChange={(val) =>
+                handleRangeChange("face_distance_threshold", val)
+              }
+              displayValue={config.face_distance_threshold.toFixed(2)}
+            />
+          </div>
+        </Card>
+
+        {/* Server & Streaming */}
+        <Card
+          title="Server & Streaming"
+          subtitle="FPS dan kualitas JPEG stream"
+        >
+          <div className="space-y-4">
+            <SettingsInput
+              label="Server FPS"
+              value={config.server_fps.toString()}
+              onChange={(val) => handleInputChange("server_fps", Number(val))}
+            />
+            <SliderField
+              label="Kualitas JPEG Stream"
+              value={config.server_quality}
+              min={1}
+              max={100}
+              onChange={(val) => handleInputChange("server_quality", val)}
+              displayValue={`${config.server_quality}%`}
+            />
+          </div>
+        </Card>
+
+        {/* Telegram Notification */}
+        <Card
+          title="Notifikasi Telegram"
+          subtitle="Integrasi alert ke Telegram bot"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-colors hover:bg-slate-50">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Kamera & Sumber Video</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Konfigurasi sumber input kamera CCTV dan parameter deteksi</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Camera Source */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Sumber Kamera (RTSP URL atau Index)
-                </label>
-                <input
-                  type="text"
-                  value={config.camera_source}
-                  onChange={(e) => handleInputChange('camera_source', e.target.value)}
-                  placeholder="Contoh: 0 atau rtsp://192.168.1.100:554/stream"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900 placeholder-slate-400"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Masukkan index kamera (0, 1, 2...) atau URL RTSP lengkap untuk streaming
+                <p className="font-bold text-slate-800">Aktifkan Notifikasi</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Status: {config.telegram_enabled ? "Aktif" : "Nonaktif"}
                 </p>
               </div>
+              <Toggle
+                enabled={config.telegram_enabled}
+                onChange={() => handleToggle("telegram_enabled")}
+                label="Aktifkan notifikasi Telegram"
+              />
+            </div>
 
-              {/* Detection Duration */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    Durasi Deteksi (detik)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={config.detection_duration}
-                    onChange={(e) => handleInputChange('detection_duration', parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900"
-                  />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Lama waktu untuk mengonfirmasi deteksi sebelum alert
-                  </p>
-                </div>
+            <SettingsInput
+              label="Bot Token"
+              value={config.telegram_bot_token}
+              type="password"
+              placeholder="••••••••••••••••••••"
+              disabled={!config.telegram_enabled}
+              onChange={(val) => handleInputChange("telegram_bot_token", val)}
+            />
+            <SettingsInput
+              label="Chat ID"
+              value={config.telegram_chat_id}
+              placeholder="-1001234567890"
+              disabled={!config.telegram_enabled}
+              onChange={(val) => handleInputChange("telegram_chat_id", val)}
+            />
 
-                {/* Cooldown Minutes */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    Cooldown (menit)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="120"
-                    value={config.cooldown_minutes}
-                    onChange={(e) => handleInputChange('cooldown_minutes', parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900"
-                  />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Jeda sebelum alert untuk pelanggaran yang sama dapat muncul kembali
-                  </p>
-                </div>
+            <Button variant="secondary" disabled={!config.telegram_enabled}>
+              <Bot className="h-4 w-4" />
+              Kirim Pesan Test
+            </Button>
+          </div>
+        </Card>
+
+        {/* Face Recognition Feature */}
+        <Card
+          title="Fitur Face Recognition"
+          subtitle="Aktifkan fitur pengenalan wajah dan manajemen identitas"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-colors hover:bg-slate-50">
+              <div>
+                <p className="font-bold text-slate-800">
+                  Aktifkan Face Recognition
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Status: {faceRecognitionEnabled ? "Aktif" : "Nonaktif"}
+                </p>
               </div>
+              <Toggle
+                enabled={faceRecognitionEnabled}
+                onChange={handleFaceRecognitionToggle}
+                label="Aktifkan fitur Face Recognition"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+              <p className="text-[13px] leading-relaxed text-amber-900">
+                <span className="font-bold text-amber-700 uppercase text-[10px] tracking-wider block mb-1">
+                  Catatan Penting
+                </span>
+                Fitur ini merupakan bagian dari plan premium. Saat diaktifkan,
+                menu <span className="font-bold">"Manajemen Identitas"</span>{" "}
+                akan muncul di sidebar dan nama staff akan ditampilkan di
+                Riwayat Insiden serta Dashboard.
+              </p>
             </div>
           </div>
-
-          {/* ========== SECTION 2: AI Detection Threshold ========== */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-transparent px-6 py-5 border-b border-slate-100 flex items-center gap-3">
-              <div className="bg-slate-900 p-2.5 rounded-lg text-white">
-                <Cpu size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">AI Detection Threshold</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Atur tingkat kepercayaan diri (confidence) untuk berbagai deteksi AI</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-8">
-              {/* Confidence Person */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-semibold text-slate-900">
-                    Confidence Threshold Deteksi Orang
-                  </label>
-                  <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                    {config.conf_person.toFixed(2)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={config.conf_person}
-                  onChange={(e) => handleRangeChange('conf_person', e.target.value)}
-                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer slider"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Semakin tinggi nilai, semakin ketat deteksi. Range: 0.0 - 1.0 (default: 0.65)
-                </p>
-              </div>
-
-              {/* Confidence SOP */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-semibold text-slate-900">
-                    Confidence Threshold Deteksi SOP
-                  </label>
-                  <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                    {config.conf_sop.toFixed(2)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={config.conf_sop}
-                  onChange={(e) => handleRangeChange('conf_sop', e.target.value)}
-                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer slider"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Kepercayaan diri untuk mendeteksi pelanggaran SOP (helm, masker, dst). Range: 0.0 - 1.0 (default: 0.70)
-                </p>
-              </div>
-
-              {/* Face Distance Threshold */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-semibold text-slate-900">
-                    Threshold Pengenalan Wajah
-                  </label>
-                  <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                    {config.face_distance_threshold.toFixed(2)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={config.face_distance_threshold}
-                  onChange={(e) => handleRangeChange('face_distance_threshold', e.target.value)}
-                  className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer slider"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Jarak embedding wajah untuk pencocokan identitas. Lebih rendah = lebih ketat. Range: 0.0 - 1.0 (default: 0.45)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* ========== SECTION 3: Server & Streaming ========== */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-transparent px-6 py-5 border-b border-slate-100 flex items-center gap-3">
-              <div className="bg-slate-900 p-2.5 rounded-lg text-white">
-                <Server size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Server & Streaming</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Konfigurasi output stream dan performa server</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Server FPS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    FPS Output Stream
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={config.server_fps}
-                    onChange={(e) => handleInputChange('server_fps', parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900"
-                  />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Frame rate untuk streaming output. Default: 30 FPS
-                  </p>
-                </div>
-
-                {/* Server Quality */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-semibold text-slate-900">
-                      Kualitas JPEG
-                    </label>
-                    <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg">
-                      {config.server_quality}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="100"
-                    value={config.server_quality}
-                    onChange={(e) => handleRangeChange('server_quality', e.target.value)}
-                    className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer slider"
-                  />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    Kualitas kompresi JPEG untuk streaming. Range: 1 - 100 (default: 85)
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ========== SECTION 4: Notifikasi ========== */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-transparent px-6 py-5 border-b border-slate-100 flex items-center gap-3">
-              <div className="bg-slate-900 p-2.5 rounded-lg text-white">
-                <Bell size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Notifikasi</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Konfigurasi pengiriman notifikasi ke Telegram</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Telegram Enabled Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-3">
-                  <Wifi size={20} className="text-slate-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Aktifkan Notifikasi Telegram</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Kirim alert insiden ke Telegram secara otomatis
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleToggle('telegram_enabled')}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition ${
-                    config.telegram_enabled ? 'bg-slate-900' : 'bg-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition ${
-                      config.telegram_enabled ? 'translate-x-7' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Telegram Bot Token */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Bot Token Telegram
-                </label>
-                <input
-                  type="password"
-                  value={config.telegram_bot_token}
-                  onChange={(e) => handleInputChange('telegram_bot_token', e.target.value)}
-                  placeholder="Masukkan Bot Token dari @BotFather"
-                  disabled={!config.telegram_enabled}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900 placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Token sensitif — disimpan terenkripsi di server. Dapatkan dari Telegram @BotFather
-                </p>
-              </div>
-
-              {/* Telegram Chat ID */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Chat ID Telegram
-                </label>
-                <input
-                  type="text"
-                  value={config.telegram_chat_id}
-                  onChange={(e) => handleInputChange('telegram_chat_id', e.target.value)}
-                  placeholder="Contoh: 123456789 atau -100123456789"
-                  disabled={!config.telegram_enabled}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none transition bg-white text-slate-900 placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  ID chat atau group dimana notifikasi akan dikirim. Gunakan @userinfobot untuk menemukan Chat ID Anda
-                </p>
-              </div>
-
-              {!config.telegram_enabled && (
-                <div className="flex gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <AlertCircle size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-slate-600">
-                    Aktifkan toggle di atas untuk mengkonfigurasi notifikasi Telegram
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ========== ACTION BUTTONS ========== */}
-          <div className="flex gap-4 pt-4">
-            <button
-              onClick={handleSaveConfig}
-              disabled={isSaving}
-              className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg shadow-lg hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                <>
-                  <Save size={20} />
-                  Simpan Konfigurasi
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleReset}
-              className="px-8 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-bold text-lg hover:bg-slate-50 transition flex items-center justify-center gap-2"
-            >
-              <RotateCcw size={20} />
-              Reset ke Default
-            </button>
-          </div>
-        </div>
+        </Card>
       </div>
-
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #0f172a;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          transition: all 0.2s;
-        }
-
-        .slider::-webkit-slider-thumb:hover {
-          transform: scale(1.15);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #0f172a;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          transition: all 0.2s;
-        }
-
-        .slider::-moz-range-thumb:hover {
-          transform: scale(1.15);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

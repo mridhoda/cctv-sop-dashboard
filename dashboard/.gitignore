@@ -1,4 +1,9 @@
-# Logs
+# ============================================
+# DASHBOARD - .gitignore
+# React + Vite Project
+# ============================================
+
+# --- Logs ---
 logs
 *.log
 npm-debug.log*
@@ -7,57 +12,104 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Runtime data
+# --- Runtime Data ---
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Dependency directories
+# --- Dependencies ---
 node_modules/
 .pnp
 .pnp.js
+.yarn-integrity
 
-# Build output
+# --- Build Output ---
 dist/
 dist-ssr/
 build/
+*.tgz
+*.tar.gz
 
-# Editor directories and files
+# --- Vite Specific ---
+.vite/
+*.local
+
+# --- Editor Directories & Files ---
+# VSCode
 .vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 !.vscode/extensions.json
+.vscode-test
+
+# IntelliJ / JetBrains
 .idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Emacs
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Environment variables
+# --- OS Generated Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- Environment Variables ---
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.development
+.env.test
+.env.production
+!.env.example
 
-# Testing
+# --- Testing & Coverage ---
 coverage/
+.nyc_output/
+*.lcov
+cypress/videos/
+cypress/screenshots/
+playwright-report/
+test-results/
 
-# Temporary files
+# --- Temporary Files ---
 *.tmp
 *.temp
-
-# Cache
 .cache/
-.parcel-cache/
-.eslintcache
-.stylelintcache
+*.cache
+.temp/
+tmp/
+temp/
 
-# Local env files
-*.local
+# --- Package Manager Lock Files (optional - uncomment if needed) ---
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
-# TypeScript
+# --- TypeScript ---
 *.tsbuildinfo
 
-# Vite
-.vite/
-.vercel
+# --- ESLint & Prettier ---
+.eslintcache
+.prettiercache
+
+# --- Storybook ---
+storybook-static/
+
+# --- Misc ---
+*.local
+.history/
+nul
