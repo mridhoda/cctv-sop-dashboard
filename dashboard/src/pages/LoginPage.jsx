@@ -23,7 +23,7 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password wajib diisi"),
 });
 
-export default function LoginPage() {
+export default function LoginPage({ onSwitchView }) {
   const { login } = useAuth();
   const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -183,7 +183,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-400 transition hover:text-slate-600"
+                  className="text-slate-400 transition hover:text-slate-600 shrink-0"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -192,11 +192,22 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-1 text-xs text-rose-500">
-                  {errors.password.message}
-                </p>
-              )}
+              <div className="mt-1 flex justify-between items-center">
+                {errors.password ? (
+                  <p className="text-xs text-rose-500">
+                    {errors.password.message}
+                  </p>
+                ) : (
+                  <div></div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onSwitchView?.("forgot_password")}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+                >
+                  Lupa password?
+                </button>
+              </div>
             </label>
 
             <Button type="submit" disabled={isLoading} className="w-full">
@@ -204,6 +215,20 @@ export default function LoginPage() {
               {isLoading ? "Memproses..." : "Masuk"}
             </Button>
           </form>
+
+          {/* Links */}
+          <div className="mt-8 text-center text-sm">
+             <p className="text-slate-500">
+                Belum punya akun?{" "}
+                <button
+                  type="button"
+                  onClick={() => onSwitchView?.("signup")}
+                  className="font-bold text-slate-900 transition hover:underline"
+                >
+                  Daftar di sini
+                </button>
+             </p>
+          </div>
 
           {/* Demo accounts */}
           <div className="mt-6 space-y-2">

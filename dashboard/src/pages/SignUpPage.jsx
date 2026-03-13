@@ -1,0 +1,310 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Shield,
+  User,
+  Lock,
+  Mail,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+  Eye as EyeIcon,
+  ArrowLeft,
+} from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Badge from "../components/ui/Badge";
+import Button from "../components/ui/Button";
+import { useToast } from "../components/ui/Toast";
+
+const signupSchema = z
+  .object({
+    fullName: z.string().min(3, "Nama lengkap harus minimal 3 karakter"),
+    email: z.string().email("Format email tidak valid"),
+    username: z.string().min(4, "Username harus minimal 4 karakter"),
+    password: z.string().min(6, "Password minimal 6 karakter"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Password tidak cocok",
+    path: ["confirmPassword"],
+  });
+
+export default function SignUpPage({ onSwitchView }) {
+  const { addToast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmit = async (data) => {
+    setIsLoading(true);
+    try {
+      // Mock API call for signup
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      addToast({
+        type: "success",
+        message: "Pendaftaran berhasil! Silakan masuk dengan akun baru Anda.",
+      });
+      // Switch back to login page after successful registration
+      onSwitchView("login");
+    } catch (error) {
+      addToast({
+        type: "error",
+        message: "Pendaftaran gagal. Silakan coba lagi.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="grid min-h-screen grid-cols-1 bg-slate-100 lg:grid-cols-2">
+      {/* ── Left panel: branding ── */}
+      <div className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col lg:justify-between lg:p-12">
+        {/* Logo */}
+        <div>
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-emerald-400">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-slate-900">
+                VisionGuard AI
+              </p>
+              <p className="text-sm text-slate-500">
+                Foodinesia CCTV-SOP Dashboard
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature highlights */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="max-w-xl"
+        >
+          <Badge tone="blue">Bergabung Bersama Kami</Badge>
+          <h1 className="mt-5 text-5xl font-bold tracking-tight text-slate-900">
+            Mulai Pantau Kepatuhan SOP dengan AI
+          </h1>
+          <p className="mt-5 text-lg leading-8 text-slate-600">
+            Daftarkan perusahaan Anda dan akses fitur deteksi otomatis untuk memastikan standar kualitas terbaik di setiap outlet.
+          </p>
+          <div className="mt-10 flex gap-4">
+             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col justify-center items-center">
+                <ShieldCheck className="h-8 w-8 text-emerald-500 mb-2" />
+                <p className="text-center text-sm font-semibold text-slate-900">Sistem Aman</p>
+             </div>
+             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col justify-center items-center">
+                <User className="h-8 w-8 text-blue-500 mb-2" />
+                <p className="text-center text-sm font-semibold text-slate-900">Multi User</p>
+             </div>
+          </div>
+        </motion.div>
+
+        <div className="text-sm text-slate-500">
+          Background #f1f5f9 • Card #ffffff • Sidebar #0f172a
+        </div>
+      </div>
+
+      {/* ── Right panel: signup form ── */}
+      <div className="flex items-center justify-center p-6 lg:p-10 relative">
+         <button
+          onClick={() => onSwitchView("login")}
+          className="absolute top-6 left-6 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900 lg:hidden"
+        >
+          <ArrowLeft className="h-4 w-4" /> Kembali
+        </button>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl"
+        >
+          <div className="mb-8">
+            {/* Mobile logo */}
+            <div className="mb-6 flex items-center gap-3 lg:hidden mt-4">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-emerald-400">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">VisionGuard AI</p>
+                <p className="text-xs text-slate-500">CCTV-SOP Dashboard</p>
+              </div>
+            </div>
+
+            <Badge tone="emerald">Pendaftaran Akun</Badge>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+              Buat Akun Baru
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Lengkapi data di bawah ini untuk mendaftar.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+             <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-600">
+                Nama Lengkap
+              </span>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
+                <User className="h-4 w-4 text-slate-400" />
+                <input
+                  {...register("fullName")}
+                  placeholder="Masukkan nama lengkap"
+                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+                />
+              </div>
+              {errors.fullName && (
+                <p className="mt-1 text-xs text-rose-500">
+                  {errors.fullName.message}
+                </p>
+              )}
+            </label>
+
+             <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-600">
+                Email
+              </span>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
+                <Mail className="h-4 w-4 text-slate-400" />
+                <input
+                  {...register("email")}
+                  placeholder="nama@perusahaan.com"
+                  type="email"
+                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+                />
+              </div>
+              {errors.email && (
+                <p className="mt-1 text-xs text-rose-500">
+                  {errors.email.message}
+                </p>
+              )}
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-600">
+                Username
+              </span>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
+                <User className="h-4 w-4 text-slate-400" />
+                <input
+                  {...register("username")}
+                  placeholder="Buat username unik"
+                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+                />
+              </div>
+              {errors.username && (
+                <p className="mt-1 text-xs text-rose-500">
+                  {errors.username.message}
+                </p>
+              )}
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-600">
+                  Password
+                </span>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
+                  <Lock className="h-4 w-4 text-slate-400" />
+                  <input
+                    {...register("password")}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min. 6 kar"
+                    className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400 min-w-0 pointer-events-auto"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-400 transition hover:text-slate-600 shrink-0"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <EyeIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-1 text-xs text-rose-500">
+                    {errors.password.message}
+                  </p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-600">
+                  Ulangi Password
+                </span>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
+                  <Lock className="h-4 w-4 text-slate-400" />
+                  <input
+                    {...register("confirmPassword")}
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Ulangi"
+                    className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400 min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="text-slate-400 transition hover:text-slate-600 shrink-0"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <EyeIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-xs text-rose-500">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
+              </label>
+            </div>
+
+            <Button type="submit" disabled={isLoading} className="w-full mt-2">
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isLoading ? "Memproses..." : "Daftar Akun"}
+            </Button>
+          </form>
+
+          {/* Links */}
+          <div className="mt-8 text-center text-sm">
+             <p className="text-slate-500">
+                Sudah punya akun?{" "}
+                <button
+                  type="button"
+                  onClick={() => onSwitchView("login")}
+                  className="font-bold text-slate-900 transition hover:underline"
+                >
+                  Masuk di sini
+                </button>
+             </p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

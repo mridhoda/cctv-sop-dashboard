@@ -46,6 +46,8 @@ import { useFaceRecognition } from "./hooks/useFaceRecognition";
 
 import LandingPage from "./LandingPage";
 import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 const ErrorMessage = ({ error, onRetry }) => (
   <div className="p-8 text-center">
     <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 max-w-md mx-auto">
@@ -614,6 +616,7 @@ function DashboardShell() {
 function AppContent() {
   const { user, loading } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
+  const [authView, setAuthView] = useState("login"); // "login" | "signup" | "forgot_password"
 
   // Sync showLanding state: if user is logged in, we skip landing page from now on
   useEffect(() => {
@@ -648,8 +651,17 @@ function AppContent() {
     return <DashboardShell />;
   }
 
+  // Authentication routing for unauthenticated users
+  if (authView === "signup") {
+    return <SignUpPage onSwitchView={setAuthView} />;
+  }
+
+  if (authView === "forgot_password") {
+    return <ForgotPasswordPage onSwitchView={setAuthView} />;
+  }
+
   // Default: show login page (handles logout transition too)
-  return <LoginPage />;
+  return <LoginPage onSwitchView={setAuthView} />;
 }
 
 // ─── Root App with Providers ────────────────────────────────

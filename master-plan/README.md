@@ -17,7 +17,8 @@ cctv-sop/master-plan/
 │   ├── 00_erd_database_v2.md
 │   ├── 00_erd_database_supabase.md
 │   ├── 00_erd_database_supabase_saas.md
-│   └── 01_erd_v2_compatibility_analysis.md
+│   ├── 01_erd_v2_compatibility_analysis.md
+│   └── DATABASE_CURRENT_STATE.md          ← 📍 NEW: Live DB schema reference
 │
 ├── backend/                           ← ⚙️ Backend Architecture
 │   ├── MULTI_CAMERA_ARCHITECTURE.md
@@ -95,8 +96,8 @@ Master Plan ini dibuat untuk:
 ## 📊 Quick Stats
 
 ```
-Total Plans: 13 documents
-├── Database: 5 docs (DDL, RLS, Migration guides)
+Total Plans: 14 documents
+├── Database: 6 docs (DDL, RLS, Migration guides + Live state reference)
 ├── Backend: 3 docs (Architecture + Supabase integration)
 ├── Frontend: 3 docs (Implementation + Supabase integration + Feature rules)
 └── Cross-functional: 2 docs (Gap analysis + Environment setup)
