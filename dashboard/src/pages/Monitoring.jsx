@@ -24,8 +24,7 @@ import { cn } from "../utils/cn";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 
-const API_BASE =
-  import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
+const API_BASE = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
 
 const SEVERITY_STYLES = {
   alert: {
@@ -167,21 +166,21 @@ function StreamViewer({
 
       {/* Live stream */}
       {streamStatus === "live" && isImageLoaded && (
-        <div className="h-full w-full flex items-center justify-center overflow-hidden">
-          <img
-            src={streamSrc}
-            alt="Live stream"
-            className="transition-transform duration-300 ease-in-out"
-            style={{
-              transform: `rotate(${rotation}deg)`,
-              maxWidth: isPortrait ? "100vh" : "100%",
-              maxHeight: isPortrait ? "100vw" : "100%",
-              objectFit: "contain",
-            }}
-            onError={handleImageError}
-            onLoad={handleImageLoad}
-          />
-        </div>
+        <img
+          src={streamSrc}
+          alt="Live stream"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-in-out"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            ...(isPortrait && {
+              transformOrigin: "center center",
+              width: "100%",
+              height: "100%",
+            }),
+          }}
+          onError={handleImageError}
+          onLoad={handleImageLoad}
+        />
       )}
 
       {/* Overlay Top */}
@@ -287,20 +286,21 @@ export default function Monitoring({ currentUser }) {
   const { data: dbCameras = [] } = useCameras();
 
   // Map DB cameras to the UI format
-  const cameras = dbCameras.length > 0
-    ? dbCameras.map((cam) => ({
-        id: cam.id,
-        name: cam.name,
-        area: cam.location,
-        location: cam.location,
-        online: cam.status === "online",
-        resolution: cam.cameras_extended?.resolution
-          ? `${cam.cameras_extended.resolution.width}x${cam.cameras_extended.resolution.height}`
-          : "1080p",
-        fps: cam.cameras_extended?.fps_limit || 30,
-        incidents: 0,
-      }))
-    : [FALLBACK_CAMERA];
+  const cameras =
+    dbCameras.length > 0
+      ? dbCameras.map((cam) => ({
+          id: cam.id,
+          name: cam.name,
+          area: cam.location,
+          location: cam.location,
+          online: cam.status === "online",
+          resolution: cam.cameras_extended?.resolution
+            ? `${cam.cameras_extended.resolution.width}x${cam.cameras_extended.resolution.height}`
+            : "1080p",
+          fps: cam.cameras_extended?.fps_limit || 30,
+          incidents: 0,
+        }))
+      : [FALLBACK_CAMERA];
 
   const [selectedCam, setSelectedCam] = useState(cameras[0]);
   const [isEngineExpanded, setIsEngineExpanded] = useState(false);
@@ -451,9 +451,7 @@ export default function Monitoring({ currentUser }) {
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        cam.online
-                          ? "bg-emerald-400"
-                          : "bg-slate-300",
+                        cam.online ? "bg-emerald-400" : "bg-slate-300",
                       )}
                     />
                     <span>{cam.name}</span>
