@@ -2,13 +2,14 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Shield,
-  User,
+  Mail,
   Lock,
   Eye,
   EyeOff,
   Loader2,
   ShieldCheck,
   Eye as EyeIcon,
+  User,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +20,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../components/ui/Toast";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username wajib diisi"),
+  email: z.string().email("Format email tidak valid").min(1, "Email wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
@@ -36,28 +37,27 @@ export default function LoginPage({ onSwitchView }) {
     setValue,
   } = useForm({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "" },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      await login(data);
+      await login({ email: data.email, password: data.password });
       addToast({ type: "success", message: "Login berhasil! Selamat datang." });
     } catch (error) {
       addToast({
         type: "error",
         message:
-          error.response?.data?.message ||
-          "Login gagal. Periksa username dan password.",
+          error.message || "Login gagal. Periksa email dan password.",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fillCredentials = (username, password) => {
-    setValue("username", username);
+  const fillCredentials = (email, password) => {
+    setValue("email", email);
     setValue("password", password);
   };
 
@@ -151,19 +151,20 @@ export default function LoginPage({ onSwitchView }) {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-600">
-                Username
+                Email
               </span>
               <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
-                <User className="h-4 w-4 text-slate-400" />
+                <Mail className="h-4 w-4 text-slate-400" />
                 <input
-                  {...register("username")}
-                  placeholder="Masukkan username"
+                  {...register("email")}
+                  type="email"
+                  placeholder="Masukkan email"
                   className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
                 />
               </div>
-              {errors.username && (
+              {errors.email && (
                 <p className="mt-1 text-xs text-rose-500">
-                  {errors.username.message}
+                  {errors.email.message}
                 </p>
               )}
             </label>
@@ -230,45 +231,14 @@ export default function LoginPage({ onSwitchView }) {
              </p>
           </div>
 
-          {/* Demo accounts */}
-          <div className="mt-6 space-y-2">
+          {/* Demo info */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-center text-xs font-medium uppercase tracking-wider text-slate-400">
-              Akun Demo — Klik untuk isi otomatis
+              Informasi Login
             </p>
-
-            <button
-              onClick={() => fillCredentials("superadmin", "admin123")}
-              type="button"
-              className="flex w-full items-start gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50 p-4 text-left transition hover:border-blue-300"
-            >
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-500 text-white">
-                <ShieldCheck className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-semibold text-blue-900">
-                  Super Administrator
-                </p>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  superadmin / admin123 — Akses penuh semua fitur
-                </p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => fillCredentials("viewer", "viewer123")}
-              type="button"
-              className="flex w-full items-start gap-3 rounded-2xl border-2 border-emerald-100 bg-emerald-50 p-4 text-left transition hover:border-emerald-300"
-            >
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white">
-                <User className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-semibold text-emerald-900">Viewer</p>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  viewer / viewer123 — Dashboard & Monitoring saja
-                </p>
-              </div>
-            </button>
+            <p className="mt-2 text-center text-sm text-slate-500">
+              Gunakan email dan password yang terdaftar di Supabase Auth.
+            </p>
           </div>
         </motion.div>
       </div>

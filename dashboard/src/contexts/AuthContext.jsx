@@ -5,14 +5,21 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import {
-  login as loginApi,
-  logout as logoutApi,
-  getCurrentUser,
-} from "../services/auth";
+import { supabase } from "../lib/supabase";
+import { fetchProfile } from "../services/auth";
 import { isFaceRecognitionEnabled } from "../hooks/useFaceRecognition";
 
 const AuthContext = createContext(null);
+
+const withTimeout = (promise, ms, errorMessage) => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(
+      () => reject(new Error(errorMessage || "Request timed out")),
+      ms,
+    ),
+  );
+  return Promise.race([promise, timeout]);
+};
 
 const ROLE_PERMISSIONS = {
   superadmin: [
@@ -39,122 +46,154 @@ const ROLE_PERMISSIONS = {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: check for existing JWT and validate it
+  // Load profile from Supabase profiles table
+  const loadProfile = useCallback(async (authUser) => {
+    if (!authUser) {
+      setProfile(null);
+      return null;
+    }
+    try {
+      const data = await withTimeout(
+        fetchProfile(authUser.id),
+        8000,
+        "Profile fetch timeout",
+      );
+      setProfile(data);
+      return data;
+    } catch (err) {
+      console.warn("[Auth] Profile fetch failed:", err.message);
+      // Fallback: use auth user metadata
+      const fallback = {
+        id: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.name || authUser.email?.split("@")[0],
+        role: authUser.user_metadata?.role || "viewer",
+        username: authUser.email,
+      };
+      setProfile(fallback);
+      return fallback;
+    }
+  }, []);
+
+  // Initialize: get session + listen for auth changes
   useEffect(() => {
-    const token = localStorage.getItem("token");
     const skipAutoLogin = sessionStorage.getItem("skipAutoLogin");
 
-    // Skip auto-login if user explicitly clicked login from landing page
     if (skipAutoLogin === "true") {
       setLoading(false);
       return;
     }
 
-    if (token) {
-      if (token === "mock-jwt-token") {
-        setUser({
-          id: "mock-1",
-          username: "superadmin",
-          role: "superadmin",
-          name: "Super Admin (Mock)",
-        });
+    // Get initial session with timeout and error handling
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          8000,
+          "Session fetch timeout",
+        );
+        if (error) throw error;
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user);
+        }
+      } catch (err) {
+        console.warn("[Auth] Session check failed:", err.message);
+        // Clear any stale session data
+        setUser(null);
+        setProfile(null);
+      } finally {
+        // Always set loading to false, even on error
         setLoading(false);
-        return;
       }
+    };
 
-      getCurrentUser()
-        .then((data) => {
-          const userData = data.user || data;
-          setUser(userData);
-        })
-        .catch(() => {
-          localStorage.removeItem("token");
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    checkSession();
 
-  const login = useCallback(async (credentials) => {
-    try {
-      const data = await loginApi(credentials);
-      localStorage.setItem("token", data.token);
+    // Listen for auth state changes (login, logout, token refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        const authUser = session?.user ?? null;
+        setUser(authUser);
+        if (authUser) {
+          await loadProfile(authUser);
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error("[Auth] onAuthStateChange error:", err);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadProfile]);
+
+  const login = useCallback(
+    async ({ email, password }) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
       // Clear skip auto-login flag after successful login
       sessionStorage.removeItem("skipAutoLogin");
-      const userData = data.user || data;
-      setUser(userData);
-      return userData;
-    } catch (error) {
-      // Fallback for development/demo mode if backend auth is not available
-      const { username, password } = credentials;
-      if (
-        (username === "superadmin" && password === "admin123") ||
-        (username === "viewer" && password === "viewer123")
-      ) {
-        console.warn("[AUTH] Backend unavailable, using mock login fallback");
-        // Clear skip auto-login flag after successful login
-        sessionStorage.removeItem("skipAutoLogin");
-        const mockUser = {
-          id: username === "superadmin" ? "mock-admin" : "mock-viewer",
-          username: username,
-          role: username === "superadmin" ? "superadmin" : "viewer",
-          name:
-            username === "superadmin"
-              ? "Super Administrator (Mock)"
-              : "Viewer (Mock)",
-        };
-        localStorage.setItem("token", "mock-jwt-token");
-        setUser(mockUser);
-        return mockUser;
-      }
-      throw error;
-    }
-  }, []);
+      setUser(data.user);
+      const prof = await loadProfile(data.user);
+      return prof;
+    },
+    [loadProfile],
+  );
 
   const logout = useCallback(async () => {
     try {
-      await logoutApi();
+      await supabase.auth.signOut();
     } catch {
-      // API may fail (backend down, mock mode) — we still clear local state
+      // signOut may fail (network) — still clear local state
     }
-    // Always clear local state so user is redirected to login
     sessionStorage.removeItem("skipAutoLogin");
     setUser(null);
+    setProfile(null);
   }, []);
 
   /**
-   * Get allowed tabs for the current user's role.
-   * Falls back to viewer permissions if role is unknown.
-   * Note: "identities" permission requires face recognition to be enabled.
+   * Get the merged user object (auth user + profile data).
+   * This is what pages receive as "user".
    */
-  const getAllowedTabs = useCallback(() => {
-    if (!user) return [];
-    const basePermissions =
-      ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS.viewer;
+  const currentUser = profile
+    ? {
+        id: profile.id,
+        email: user?.email,
+        username: profile.username || profile.email || user?.email,
+        name: profile.name || profile.username,
+        role: profile.role || "viewer",
+        tenant_id: profile.tenant_id,
+        avatar_url: profile.avatar_url,
+      }
+    : null;
 
-    // Filter out "identities" if face recognition is disabled
-    const faceRecognitionEnabled = isFaceRecognitionEnabled();
-    if (!faceRecognitionEnabled) {
+  const getAllowedTabs = useCallback(() => {
+    if (!currentUser) return [];
+    const basePermissions =
+      ROLE_PERMISSIONS[currentUser.role] || ROLE_PERMISSIONS.viewer;
+
+    if (!isFaceRecognitionEnabled()) {
       return basePermissions.filter((tab) => tab !== "identities");
     }
-
     return basePermissions;
-  }, [user]);
+  }, [currentUser]);
 
-  /**
-   * Check if user has permission for a specific tab.
-   * Note: "identities" permission requires face recognition to be enabled.
-   */
   const hasPermission = useCallback(
     (tab) => {
-      // Special case: identities tab requires face recognition
-      if (tab === "identities") {
-        const faceRecognitionEnabled = isFaceRecognitionEnabled();
-        if (!faceRecognitionEnabled) return false;
-      }
+      if (tab === "identities" && !isFaceRecognitionEnabled()) return false;
       return getAllowedTabs().includes(tab);
     },
     [getAllowedTabs],
@@ -162,7 +201,16 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, loading, getAllowedTabs, hasPermission }}
+      value={{
+        user: currentUser,
+        rawUser: user,
+        profile,
+        login,
+        logout,
+        loading,
+        getAllowedTabs,
+        hasPermission,
+      }}
     >
       {children}
     </AuthContext.Provider>

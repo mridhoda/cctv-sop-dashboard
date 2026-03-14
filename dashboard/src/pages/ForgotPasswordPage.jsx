@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
+import { useToast } from "../components/ui/Toast";
+import { resetPassword } from "../services/auth";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Format email tidak valid"),
@@ -14,6 +16,7 @@ const forgotPasswordSchema = z.object({
 export default function ForgotPasswordPage({ onSwitchView }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const { addToast } = useToast();
 
   const {
     register,
@@ -27,10 +30,13 @@ export default function ForgotPasswordPage({ onSwitchView }) {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      // Mock API call to send reset link
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await resetPassword(data.email);
       setIsSuccess(true);
     } catch (error) {
+      addToast({
+        type: "error",
+        message: error.message || "Gagal mengirim email reset. Coba lagi.",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -27,27 +27,25 @@
 
 ### Database
 
-- [ ] ⬜ Setup Supabase project & credentials
+- [x] ✅ Setup Supabase project & credentials
   - **Owner**: DevOps
-  - **Due**: Mar 14
-  - **Blocker**: Waiting for IT approval
-  - **Notes**: Create project, invite team members
+  - **Completed**: Mar 13
+  - **Notes**: Project created, anon key obtained
 
-- [ ] ⬜ Run Defense Plan DDL scripts
+- [x] ✅ Run Defense Plan DDL scripts
   - **Owner**: Database Engineer
-  - **Due**: Mar 16
-  - **Depends on**: Supabase setup
-  - **Files**: `database/00_erd_database_v2.md`
+  - **Completed**: Mar 13
+  - **Notes**: 25 tables deployed to Supabase
 
 - [ ] ⬜ Configure Supabase Storage buckets
   - **Owner**: Backend Developer
   - **Due**: Mar 17
   - **Buckets**: event-evidence, identity-photos, config-exports
 
-- [ ] ⬜ Enable pgvector extension
+- [x] ✅ Enable pgvector extension
   - **Owner**: Database Engineer
-  - **Due**: Mar 17
-  - **SQL**: `CREATE EXTENSION IF NOT EXISTS vector;`
+  - **Completed**: Mar 13
+  - **Notes**: Extension enabled, ready for face encodings
 
 - [ ] ⬜ Test RLS policies with sample data
   - **Owner**: Database Engineer
@@ -81,44 +79,44 @@
 
 - [x] ✅ Setup React Query (TanStack Query)
   - **Owner**: Frontend Developer
-  - **Due**: Mar 19
+  - **Completed**: Mar 11
   - **Scope**: Cache, refetch, error boundaries
 
-- [x] ✅ Create API service layer
+- [x] ✅ Create Supabase service layer (replaced Axios)
   - **Owner**: Frontend Developer
-  - **Due**: Mar 20
-  - **Features**: Axios instance, interceptors, typed responses
+  - **Completed**: Mar 13
+  - **Features**: Supabase client, 7 service files rewritten, Storage helpers
 
-- [x] ✅ Implement real login with JWT
+- [x] ✅ Implement Supabase Auth (login/signup/reset)
   - **Owner**: Frontend Developer
-  - **Due**: Mar 22
-  - **Replaces**: Current hardcoded mock login
-  - **API**: `POST /api/auth/login`
+  - **Completed**: Mar 13
+  - **Replaces**: Mock login (superadmin/admin123)
+  - **Features**: signInWithPassword, signUp, resetPasswordForEmail
 
-- [x] ✅ Replace mock data with API calls - Dashboard
+- [x] ✅ Replace mock data with Supabase - Dashboard
   - **Owner**: Frontend Developer
-  - **Due**: Mar 25
-  - **APIs**: `/api/dashboard/summary`, `/api/dashboard/incidents`
+  - **Completed**: Mar 13
+  - **Queries**: events count today, violations count, compliance rate
 
-- [x] ✅ Replace mock data with API calls - Monitoring
+- [x] ✅ Replace mock data with Supabase - Monitoring
   - **Owner**: Frontend Developer
-  - **Due**: Mar 26
-  - **APIs**: `/api/stream/*`, WebSocket events
+  - **Completed**: Mar 13
+  - **Features**: Real camera list from Supabase, Socket.IO for stream
 
-- [x] ✅ Replace mock data with API calls - History
+- [x] ✅ Replace mock data with Supabase - History
   - **Owner**: Frontend Developer
-  - **Due**: Mar 27
-  - **APIs**: `/api/events`, pagination, filtering
+  - **Completed**: Mar 13
+  - **Features**: Supabase paginated queries, client-side CSV export
 
-- [x] ✅ Replace mock data with API calls - Identities
+- [x] ✅ Replace mock data with Supabase - Identities
   - **Owner**: Frontend Developer
-  - **Due**: Mar 28
-  - **APIs**: `/api/identities`, CRUD, photo upload
+  - **Completed**: Mar 13
+  - **Features**: Supabase CRUD + Storage photo upload
 
-- [x] ✅ Replace mock data with API calls - Settings
+- [x] ✅ Replace mock data with Supabase - Settings
   - **Owner**: Frontend Developer
-  - **Due**: Mar 29
-  - **APIs**: `/api/config`, save/load
+  - **Completed**: Mar 13
+  - **Features**: Supabase config grouped by category
 
 ---
 
@@ -344,9 +342,12 @@
 
 | Team         | P0     | P1     | P2     | P3    | Total  |
 | ------------ | ------ | ------ | ------ | ----- | ------ |
-| **Database** | 5      | 3      | 3      | 0     | 11     |
+| **Database** | 1 (of 5) | 3   | 3      | 0     | 11     |
 | **Backend**  | 4      | 6      | 4      | 3     | 17     |
-| **Frontend** | 8      | 7      | 4      | 3     | 22     |
+| **Frontend** | 0 (of 8) ✅ | 7 | 4    | 3     | 22     |
+| **DevOps**   | 0 (of 1) ✅ | 2 | 0    | 0     | 3      |
+| **QA**       | 0      | 0      | 2      | 0     | 2      |
+| **TOTAL**    | **5/18 done** | **18** | **13** | **6** | **55** |
 | **DevOps**   | 1      | 2      | 0      | 0     | 3      |
 | **QA**       | 0      | 0      | 2      | 0     | 2      |
 | **TOTAL**    | **18** | **18** | **13** | **6** | **55** |
@@ -404,25 +405,27 @@
 
 ### Database Engineer
 
-1. 🔴 Setup Supabase project (waiting for credentials)
-2. 🔴 Prepare DDL scripts for deployment
+1. ✅ ~~Setup Supabase project~~ Done
+2. ✅ ~~Prepare DDL scripts for deployment~~ 25 tables deployed
 3. 🔴 Test RLS policies locally
 
 ### Backend Developer
 
 1. 🔴 Audit V2_Project codebase
-2. 🔴 Create OpenAPI specification
+2. 🟡 Create OpenAPI specification *(may skip: frontend uses Supabase direct)*
 3. 🟡 Design CameraManager component
 
 ### Frontend Developer
 
-1. 🔴 Setup React Query
-2. 🔴 Create API service layer
-3. 🟡 Design Camera Management page mockup
+1. ✅ ~~Setup React Query~~ Done
+2. ✅ ~~Create API service layer~~ Done (Supabase direct)
+3. ✅ ~~Supabase Auth integration~~ Done
+4. ✅ ~~Replace all mock data~~ Done
+5. 🟡 Design Camera Management page mockup
 
 ### DevOps
 
-1. 🔴 Obtain Supabase credentials
+1. ✅ ~~Obtain Supabase credentials~~ Done
 2. 🟡 Setup staging environment planning
 
 ---
@@ -443,10 +446,11 @@ Untuk menambah task baru, gunakan format:
 
 ## 🔄 Update History
 
-| Date       | Changes               | Updated By |
-| ---------- | --------------------- | ---------- |
-| 2026-03-12 | Initial creation      | Tech Lead  |
-| 2026-03-12 | Added sprint planning | Tech Lead  |
+| Date       | Changes                                        | Updated By     |
+| ---------- | ---------------------------------------------- | -------------- |
+| 2026-03-13 | Frontend Supabase integration complete, all P0 FE done | Frontend Dev |
+| 2026-03-12 | Initial creation                               | Tech Lead      |
+| 2026-03-12 | Added sprint planning                          | Tech Lead      |
 
 ---
 

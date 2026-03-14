@@ -19,13 +19,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useSocket, useSocketEvent } from "../hooks/useSocket";
+import { useCameras } from "../hooks/useCameras";
 import { cn } from "../utils/cn";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 
 const API_BASE =
-  import.meta.env.VITE_API_URL?.replace("/api", "") ||
-  "https://api.foodiserver.my.id";
+  import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
 
 const SEVERITY_STYLES = {
   alert: {
@@ -48,87 +48,17 @@ const SEVERITY_STYLES = {
   },
 };
 
-const MOCK_CAMERAS = [
-  {
-    id: 1,
-    name: "CCTV 01",
-    area: "Produksi A",
-    online: true,
-    resolution: "1080p",
-    fps: 30,
-    incidents: 3,
-  },
-  {
-    id: 2,
-    name: "CCTV 02",
-    area: "Produksi B",
-    online: true,
-    resolution: "1080p",
-    fps: 30,
-    incidents: 1,
-  },
-  {
-    id: 3,
-    name: "CCTV 03",
-    area: "Packing",
-    online: false,
-    resolution: "720p",
-    fps: 25,
-    incidents: 0,
-  },
-  {
-    id: 4,
-    name: "CCTV 04",
-    area: "Gudang",
-    online: true,
-    resolution: "1080p",
-    fps: 30,
-    incidents: 2,
-  },
-];
-
-const MOCK_EVENTS = [
-  {
-    id: 1,
-    status: "Pelanggaran SOP",
-    person: "Budi",
-    type: "Helm Tidak Dipakai",
-    location: "Produksi A",
-    time: "10:05:23",
-  },
-  {
-    id: 2,
-    status: "Valid SOP",
-    person: "Andi",
-    type: "SOP Lengkap",
-    location: "Produksi B",
-    time: "10:01:15",
-  },
-  {
-    id: 3,
-    status: "Valid SOP",
-    person: "Sari",
-    type: "SOP Lengkap",
-    location: "Packing",
-    time: "09:52:10",
-  },
-  {
-    id: 4,
-    status: "Pelanggaran SOP",
-    person: "Dian",
-    type: "Masker Tidak Dipakai",
-    location: "Gudang",
-    time: "09:28:17",
-  },
-  {
-    id: 5,
-    status: "Valid SOP",
-    person: "Raka",
-    type: "SOP Lengkap",
-    location: "Produksi A",
-    time: "09:10:44",
-  },
-];
+// Default camera for fallback when DB has no cameras yet
+const FALLBACK_CAMERA = {
+  id: "fallback",
+  name: "No Camera",
+  area: "—",
+  location: "—",
+  online: false,
+  resolution: "1080p",
+  fps: 30,
+  incidents: 0,
+};
 
 function StreamViewer({
   streamStatus,
@@ -353,20 +283,46 @@ function StreamViewer({
 }
 
 export default function Monitoring({ currentUser }) {
-  const [selectedCam, setSelectedCam] = useState(MOCK_CAMERAS[0]);
+  // Fetch cameras from Supabase
+  const { data: dbCameras = [] } = useCameras();
+
+  // Map DB cameras to the UI format
+  const cameras = dbCameras.length > 0
+    ? dbCameras.map((cam) => ({
+        id: cam.id,
+        name: cam.name,
+        area: cam.location,
+        location: cam.location,
+        online: cam.status === "online",
+        resolution: cam.cameras_extended?.resolution
+          ? `${cam.cameras_extended.resolution.width}x${cam.cameras_extended.resolution.height}`
+          : "1080p",
+        fps: cam.cameras_extended?.fps_limit || 30,
+        incidents: 0,
+      }))
+    : [FALLBACK_CAMERA];
+
+  const [selectedCam, setSelectedCam] = useState(cameras[0]);
   const [isEngineExpanded, setIsEngineExpanded] = useState(false);
   const [engineStatus, setEngineStatus] = useState("running");
   const [isLoading, setIsLoading] = useState(false);
   const [streamStatus, setStreamStatus] = useState("offline");
-  const [events, setEvents] = useState(MOCK_EVENTS);
+  const [events, setEvents] = useState([]);
   const [stats, setStats] = useState({
-    detections: 320,
-    violations: 24,
-    valid: 296,
-    compliance: 92,
-    fps: 30,
-    activeTracks: 5,
+    detections: 0,
+    violations: 0,
+    valid: 0,
+    compliance: 0,
+    fps: 0,
+    activeTracks: 0,
   });
+
+  // Update selectedCam when cameras change (e.g. first load)
+  useEffect(() => {
+    if (cameras.length > 0 && selectedCam.id === FALLBACK_CAMERA.id) {
+      setSelectedCam(cameras[0]);
+    }
+  }, [cameras, selectedCam.id]);
 
   const isViewer = currentUser?.role === "viewer";
   const { isConnected, emit } = useSocket();
@@ -480,13 +436,13 @@ export default function Monitoring({ currentUser }) {
                 </p>
               </div>
 
-              <div className="flex space-x-1.5">
-                {MOCK_CAMERAS.map((cam) => (
+              <div className="flex space-x-1.5 overflow-x-auto">
+                {cameras.map((cam) => (
                   <button
                     key={cam.id}
                     onClick={() => setSelectedCam(cam)}
                     className={cn(
-                      "flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                      "flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap",
                       selectedCam.id === cam.id
                         ? "bg-slate-900 text-white shadow-sm"
                         : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
@@ -495,7 +451,7 @@ export default function Monitoring({ currentUser }) {
                     <span
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        selectedCam.id === cam.id
+                        cam.online
                           ? "bg-emerald-400"
                           : "bg-slate-300",
                       )}

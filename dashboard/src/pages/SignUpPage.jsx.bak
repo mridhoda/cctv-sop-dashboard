@@ -17,12 +17,12 @@ import { z } from "zod";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { useToast } from "../components/ui/Toast";
+import { signUp } from "../services/auth";
 
 const signupSchema = z
   .object({
     fullName: z.string().min(3, "Nama lengkap harus minimal 3 karakter"),
     email: z.string().email("Format email tidak valid"),
-    username: z.string().min(4, "Username harus minimal 4 karakter"),
     password: z.string().min(6, "Password minimal 6 karakter"),
     confirmPassword: z.string(),
   })
@@ -46,7 +46,6 @@ export default function SignUpPage({ onSwitchView }) {
     defaultValues: {
       fullName: "",
       email: "",
-      username: "",
       password: "",
       confirmPassword: "",
     },
@@ -55,18 +54,20 @@ export default function SignUpPage({ onSwitchView }) {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      // Mock API call for signup
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await signUp({
+        email: data.email,
+        password: data.password,
+        name: data.fullName,
+      });
       addToast({
         type: "success",
-        message: "Pendaftaran berhasil! Silakan masuk dengan akun baru Anda.",
+        message: "Pendaftaran berhasil! Silakan cek email untuk verifikasi.",
       });
-      // Switch back to login page after successful registration
       onSwitchView("login");
     } catch (error) {
       addToast({
         type: "error",
-        message: "Pendaftaran gagal. Silakan coba lagi.",
+        message: error.message || "Pendaftaran gagal. Silakan coba lagi.",
       });
     } finally {
       setIsLoading(false);
@@ -201,24 +202,7 @@ export default function SignUpPage({ onSwitchView }) {
               )}
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-600">
-                Username
-              </span>
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200">
-                <User className="h-4 w-4 text-slate-400" />
-                <input
-                  {...register("username")}
-                  placeholder="Buat username unik"
-                  className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
-                />
-              </div>
-              {errors.username && (
-                <p className="mt-1 text-xs text-rose-500">
-                  {errors.username.message}
-                </p>
-              )}
-            </label>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="block">

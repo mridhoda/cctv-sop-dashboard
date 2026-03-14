@@ -43,6 +43,7 @@ import {
   useCameraStatus,
 } from "./hooks/useDashboard";
 import { useFaceRecognition } from "./hooks/useFaceRecognition";
+import { useRealtimeEvents } from "./hooks/useRealtimeEvents";
 
 import LandingPage from "./LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -463,6 +464,10 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
 function DashboardShell() {
   const { user, logout, hasPermission, getAllowedTabs } = useAuth();
   const { addToast } = useToast();
+
+  // Subscribe to Supabase Realtime events (background)
+  useRealtimeEvents();
+
   const allowedTabs = getAllowedTabs();
   const [activeTab, setActiveTab] = useState(allowedTabs[0] || "home");
 
