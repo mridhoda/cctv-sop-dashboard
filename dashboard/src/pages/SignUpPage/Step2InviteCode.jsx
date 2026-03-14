@@ -25,6 +25,7 @@ export default function Step2InviteCode({
   personalData,
   isLoading,
   error: submitError,
+  onSwitchMode,
 }) {
   const [validationResult, setValidationResult] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -155,6 +156,28 @@ export default function Step2InviteCode({
           )}
         </div>
 
+        {/* Checkbox Invite Code Toggle */}
+        <div className="pt-2">
+          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer">
+            <input
+              type="checkbox"
+              checked={true}
+              onChange={(e) =>
+                onSwitchMode(e.target.checked ? "member" : "owner")
+              }
+              className="mt-0.5 w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <div>
+              <span className="font-medium text-slate-700">
+                Saya punya kode undangan (Invite Code)
+              </span>
+              <p className="text-sm text-slate-500 mt-1">
+                Hapus centang untuk membuat perusahaan baru sebagai admin
+              </p>
+            </div>
+          </label>
+        </div>
+
         {/* Validation Result */}
         {validationResult && validationResult.valid && (
           <motion.div
@@ -236,18 +259,6 @@ export default function Step2InviteCode({
             <span>Gabung ke Perusahaan</span>
           )}
         </Button>
-
-        {/* Alternative Option */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
-            Ingin membuat perusahaan baru sendiri?{" "}
-            <span className="font-medium underline">Klik di sini</span>
-          </button>
-        </div>
       </div>
     </motion.div>
   );

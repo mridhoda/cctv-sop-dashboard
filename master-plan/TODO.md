@@ -340,17 +340,17 @@
 
 ## 📊 Task Summary by Team
 
-| Team         | P0     | P1     | P2     | P3    | Total  |
-| ------------ | ------ | ------ | ------ | ----- | ------ |
-| **Database** | 1 (of 5) | 3   | 3      | 0     | 11     |
-| **Backend**  | 4      | 6      | 4      | 3     | 17     |
-| **Frontend** | 0 (of 8) ✅ | 7 | 4    | 3     | 22     |
-| **DevOps**   | 0 (of 1) ✅ | 2 | 0    | 0     | 3      |
-| **QA**       | 0      | 0      | 2      | 0     | 2      |
+| Team         | P0            | P1     | P2     | P3    | Total  |
+| ------------ | ------------- | ------ | ------ | ----- | ------ |
+| **Database** | 1 (of 5)      | 3      | 3      | 0     | 11     |
+| **Backend**  | 4             | 6      | 4      | 3     | 17     |
+| **Frontend** | 0 (of 8) ✅   | 7      | 4      | 3     | 22     |
+| **DevOps**   | 0 (of 1) ✅   | 2      | 0      | 0     | 3      |
+| **QA**       | 0             | 0      | 2      | 0     | 2      |
 | **TOTAL**    | **5/18 done** | **18** | **13** | **6** | **55** |
-| **DevOps**   | 1      | 2      | 0      | 0     | 3      |
-| **QA**       | 0      | 0      | 2      | 0     | 2      |
-| **TOTAL**    | **18** | **18** | **13** | **6** | **55** |
+| **DevOps**   | 1             | 2      | 0      | 0     | 3      |
+| **QA**       | 0             | 0      | 2      | 0     | 2      |
+| **TOTAL**    | **18**        | **18** | **13** | **6** | **55** |
 
 ---
 
@@ -412,7 +412,7 @@
 ### Backend Developer
 
 1. 🔴 Audit V2_Project codebase
-2. 🟡 Create OpenAPI specification *(may skip: frontend uses Supabase direct)*
+2. 🟡 Create OpenAPI specification _(may skip: frontend uses Supabase direct)_
 3. 🟡 Design CameraManager component
 
 ### Frontend Developer
@@ -446,11 +446,12 @@ Untuk menambah task baru, gunakan format:
 
 ## 🔄 Update History
 
-| Date       | Changes                                        | Updated By     |
-| ---------- | ---------------------------------------------- | -------------- |
+| Date       | Changes                                                | Updated By   |
+| ---------- | ------------------------------------------------------ | ------------ |
+| 2026-03-14 | Auth UI Redesign & Session verification fix            | Frontend Dev |
 | 2026-03-13 | Frontend Supabase integration complete, all P0 FE done | Frontend Dev |
-| 2026-03-12 | Initial creation                               | Tech Lead      |
-| 2026-03-12 | Added sprint planning                          | Tech Lead      |
+| 2026-03-12 | Initial creation                                       | Tech Lead    |
+| 2026-03-12 | Added sprint planning                                  | Tech Lead    |
 
 ---
 

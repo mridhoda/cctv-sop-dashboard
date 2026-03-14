@@ -16,6 +16,7 @@ export default function Step2CompanyData({
   personalData,
   isLoading,
   error,
+  onSwitchMode,
 }) {
   const {
     register,
@@ -103,6 +104,29 @@ export default function Step2CompanyData({
           )}
         </div>
 
+        {/* Checkbox Invite Code Toggle */}
+        <div className="pt-2">
+          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer">
+            <input
+              type="checkbox"
+              checked={false}
+              onChange={(e) =>
+                onSwitchMode(e.target.checked ? "member" : "owner")
+              }
+              className="mt-0.5 w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <div>
+              <span className="font-medium text-slate-700">
+                Saya punya kode undangan (Invite Code)
+              </span>
+              <p className="text-sm text-slate-500 mt-1">
+                Centang kotak ini jika Anda diundang untuk bergabung ke
+                perusahaan yang sudah ada
+              </p>
+            </div>
+          </label>
+        </div>
+
         {/* Info Card */}
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
           <div className="flex gap-3">
@@ -136,18 +160,6 @@ export default function Step2CompanyData({
             <span>Buat Akun & Perusahaan</span>
           )}
         </Button>
-
-        {/* Alternative Option */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
-            Atau, jika Anda karyawan dan punya invite code,{" "}
-            <span className="font-medium underline">klik di sini</span>
-          </button>
-        </div>
       </form>
     </motion.div>
   );

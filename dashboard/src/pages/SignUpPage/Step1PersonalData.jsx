@@ -19,7 +19,6 @@ const step1Schema = z
     email: z.string().email("Format email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
     confirmPassword: z.string(),
-    hasInviteCode: z.boolean().default(false),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Password tidak cocok",
@@ -42,11 +41,8 @@ export default function Step1PersonalData({ onNext, initialData = {} }) {
       email: initialData.email || "",
       password: initialData.password || "",
       confirmPassword: initialData.confirmPassword || "",
-      hasInviteCode: initialData.hasInviteCode || false,
     },
   });
-
-  const hasInviteCode = watch("hasInviteCode");
 
   const onSubmit = (data) => {
     onNext(data);
@@ -177,25 +173,6 @@ export default function Step1PersonalData({ onNext, initialData = {} }) {
           )}
         </div>
 
-        {/* Checkbox Invite Code */}
-        <div className="pt-2">
-          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer">
-            <input
-              {...register("hasInviteCode")}
-              type="checkbox"
-              className="mt-0.5 w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-            />
-            <div>
-              <span className="font-medium text-slate-700">
-                Saya punya invite code
-              </span>
-              <p className="text-sm text-slate-500 mt-1">
-                Karyawan dengan kode undangan dari perusahaan
-              </p>
-            </div>
-          </label>
-        </div>
-
         {/* Submit Button */}
         <Button
           type="submit"
@@ -205,13 +182,6 @@ export default function Step1PersonalData({ onNext, initialData = {} }) {
           <span>Lanjutkan</span>
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
-
-        {/* Hint */}
-        <p className="text-center text-sm text-slate-500">
-          {hasInviteCode
-            ? "Anda akan bergabung ke perusahaan yang sudah ada"
-            : "Anda akan membuat perusahaan baru sebagai admin"}
-        </p>
       </form>
     </motion.div>
   );

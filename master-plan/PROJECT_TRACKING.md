@@ -21,16 +21,16 @@
 **Periode**: Week 1-2 (Database Setup & V2 Migration)  
 **Goal**: Database schema implemented, V2 compatibility layer ready
 
-| Task                            | Owner    | Status         | Due Date | Notes                      |
-| ------------------------------- | -------- | -------------- | -------- | -------------------------- |
-| Setup Supabase project          | DevOps   | ✅ Complete    | Mar 15   | Credentials received       |
-| Run DDL scripts                 | Database | ✅ Complete    | Mar 16   | 25 tables deployed         |
-| Configure Storage buckets       | Backend  | 🔵 Planned     | Mar 17   | For photos & evidence      |
-| Enable pgvector extension       | Database | ✅ Complete    | Mar 17   | Ready for use              |
-| Test RLS policies               | Database | 🔵 Planned     | Mar 18   | Validate tenant isolation  |
-| Create migration script from V2 | Backend  | 🔵 Planned     | Mar 19   | Data export/import         |
-| Dual-write implementation       | Backend  | ⚪ Backlog     | Mar 22   | Write to local + Supabase  |
-| **Frontend → Supabase direct**  | Frontend | ✅ Complete    | Mar 13   | All services + auth done ✅ |
+| Task                            | Owner    | Status      | Due Date | Notes                       |
+| ------------------------------- | -------- | ----------- | -------- | --------------------------- |
+| Setup Supabase project          | DevOps   | ✅ Complete | Mar 15   | Credentials received        |
+| Run DDL scripts                 | Database | ✅ Complete | Mar 16   | 25 tables deployed          |
+| Configure Storage buckets       | Backend  | 🔵 Planned  | Mar 17   | For photos & evidence       |
+| Enable pgvector extension       | Database | ✅ Complete | Mar 17   | Ready for use               |
+| Test RLS policies               | Database | 🔵 Planned  | Mar 18   | Validate tenant isolation   |
+| Create migration script from V2 | Backend  | 🔵 Planned  | Mar 19   | Data export/import          |
+| Dual-write implementation       | Backend  | ⚪ Backlog  | Mar 22   | Write to local + Supabase   |
+| **Frontend → Supabase direct**  | Frontend | ✅ Complete | Mar 13   | All services + auth done ✅ |
 
 ---
 
@@ -38,8 +38,8 @@
 
 ### 1. Database Layer
 
-| Component                            | Status         | Progress | Notes                 |
-| ------------------------------------ | -------------- | -------- | --------------------- |
+| Component                            | Status         | Progress | Notes                    |
+| ------------------------------------ | -------------- | -------- | ------------------------ |
 | Core tables (users, cameras, events) | ✅ Complete    | 100%     | DDL deployed to Supabase |
 | RLS policies                         | ✅ Complete    | 100%     | All tables covered       |
 | Indexes                              | ✅ Complete    | 100%     | Performance optimized    |
@@ -64,22 +64,22 @@
 
 ### 3. Frontend Layer
 
-| Component                 | Status      | Progress | Notes                                     |
-| ------------------------- | ----------- | -------- | ----------------------------------------- |
-| Login page UI             | ✅ Complete | 100%     | Supabase Auth, email-based login          |
-| Dashboard UI              | ✅ Complete | 100%     | React Query + Supabase direct             |
-| Live Monitoring UI        | ✅ Complete | 90%      | Socket.IO stream + Supabase camera list   |
-| Incident History UI       | ✅ Complete | 100%     | Supabase pagination + client CSV export   |
-| Identity Management UI    | ✅ Complete | 100%     | Supabase CRUD + Storage upload            |
-| Reports/Evidence UI       | ✅ Complete | 100%     | Supabase events + photo filter            |
-| Settings UI               | ✅ Complete | 100%     | Supabase config grouped by category       |
-| **API Integration**       | ✅ Complete | 100%     | **Supabase direct** (no backend needed)   |
-| **Camera Management UI**  | ✅ Complete | 100%     | CRUD, multi-layout grid                   |
+| Component                 | Status      | Progress | Notes                                    |
+| ------------------------- | ----------- | -------- | ---------------------------------------- |
+| Login page UI             | ✅ Complete | 100%     | Supabase Auth, email-based login         |
+| Dashboard UI              | ✅ Complete | 100%     | React Query + Supabase direct            |
+| Live Monitoring UI        | ✅ Complete | 90%      | Socket.IO stream + Supabase camera list  |
+| Incident History UI       | ✅ Complete | 100%     | Supabase pagination + client CSV export  |
+| Identity Management UI    | ✅ Complete | 100%     | Supabase CRUD + Storage upload           |
+| Reports/Evidence UI       | ✅ Complete | 100%     | Supabase events + photo filter           |
+| Settings UI               | ✅ Complete | 100%     | Supabase config grouped by category      |
+| **API Integration**       | ✅ Complete | 100%     | **Supabase direct** (no backend needed)  |
+| **Camera Management UI**  | ✅ Complete | 100%     | CRUD, multi-layout grid                  |
 | **Frontend Architecture** | ✅ Complete | 100%     | Supabase → Service → Hook → Component    |
-| **Auth (Supabase Auth)**  | ✅ Complete | 100%     | Login, SignUp, Forgot Password, sessions  |
-| **Supabase Realtime**     | ✅ Complete | 100%     | Events + camera heartbeats subscriptions  |
-| **SignUp page**           | ✅ Complete | 100%     | Supabase signUp + email verification      |
-| **Forgot Password page**  | ✅ Complete | 100%     | Supabase resetPasswordForEmail            |
+| **Auth (Supabase Auth)**  | ✅ Complete | 100%     | Login, SignUp, Forgot Password, sessions |
+| **Supabase Realtime**     | ✅ Complete | 100%     | Events + camera heartbeats subscriptions |
+| **SignUp page**           | ✅ Complete | 100%     | Supabase signUp + email verification     |
+| **Forgot Password page**  | ✅ Complete | 100%     | Supabase resetPasswordForEmail           |
 
 **Overall Frontend**: 98% ✅
 
@@ -124,14 +124,14 @@ Overall:   █████████████████░░░░░  7
 
 ### 3. Frontend Layer
 
-| Component                 | Status      | Progress | Notes                             |
-| ------------------------- | ----------- | -------- | --------------------------------- |
-| Camera Management page    | ✅ Complete | 100%     | CRUD via Supabase direct          |
-| Multi-camera grid layouts | ❌ Not Started | 0%    | 1x1, 2x2, 3x3, 1+5              |
-| Camera selector component | ✅ Complete | 100%     | In Monitoring page                |
-| Layout selector           | ❌ Not Started | 0%    | Grid layout switcher              |
-| Camera status indicators  | ✅ Complete | 100%     | Online/offline via Supabase       |
-| Multi-WebSocket rooms     | ❌ Not Started | 0%    | Subscribe per camera              |
+| Component                 | Status         | Progress | Notes                       |
+| ------------------------- | -------------- | -------- | --------------------------- |
+| Camera Management page    | ✅ Complete    | 100%     | CRUD via Supabase direct    |
+| Multi-camera grid layouts | ❌ Not Started | 0%       | 1x1, 2x2, 3x3, 1+5          |
+| Camera selector component | ✅ Complete    | 100%     | In Monitoring page          |
+| Layout selector           | ❌ Not Started | 0%       | Grid layout switcher        |
+| Camera status indicators  | ✅ Complete    | 100%     | Online/offline via Supabase |
+| Multi-WebSocket rooms     | ❌ Not Started | 0%       | Subscribe per camera        |
 
 **Overall Frontend**: 50% ⚠️
 
@@ -202,12 +202,12 @@ Overall:   █░░░░░░░░░░░░░░░░░░░░░  5
 
 ### Q1 2026 (Jan-Mar)
 
-| Milestone                               | Target Date | Status         | Completion |
-| --------------------------------------- | ----------- | -------------- | ---------- |
-| Defense Plan - Database Complete        | Mar 15      | ✅ Complete    | 100%       |
-| Defense Plan - Backend Migration        | Mar 30      | 🔵 Planned     | 0%         |
-| Defense Plan - Frontend API Integration | Apr 15      | ✅ Complete    | 100% ✅    |
-| Defense Plan - End-to-End Testing       | Apr 30      | ⚪ Future      | 0%         |
+| Milestone                               | Target Date | Status      | Completion |
+| --------------------------------------- | ----------- | ----------- | ---------- |
+| Defense Plan - Database Complete        | Mar 15      | ✅ Complete | 100%       |
+| Defense Plan - Backend Migration        | Mar 30      | 🔵 Planned  | 0%         |
+| Defense Plan - Frontend API Integration | Apr 15      | ✅ Complete | 100% ✅    |
+| Defense Plan - End-to-End Testing       | Apr 30      | ⚪ Future   | 0%         |
 
 ### Q2 2026 (Apr-Jun)
 
@@ -232,11 +232,11 @@ Overall:   █░░░░░░░░░░░░░░░░░░░░░  5
 
 ### Active Blockers
 
-| Issue                             | Impact                 | Owner        | Mitigation          | ETA    |
-| --------------------------------- | ---------------------- | ------------ | ------------------- | ------ |
-| ~~Supabase credentials not ready~~ | ~~Database setup delayed~~ | DevOps   | ✅ Resolved         | ✅     |
-| V2_Project file structure unclear | Migration complexity   | Tech Lead    | Audit codebase      | Mar 13 |
-| ~~No API spec for frontend~~      | ~~Integration blocked~~ | Backend Lead | ✅ Frontend uses Supabase direct | ✅ |
+| Issue                              | Impact                     | Owner        | Mitigation                       | ETA    |
+| ---------------------------------- | -------------------------- | ------------ | -------------------------------- | ------ |
+| ~~Supabase credentials not ready~~ | ~~Database setup delayed~~ | DevOps       | ✅ Resolved                      | ✅     |
+| V2_Project file structure unclear  | Migration complexity       | Tech Lead    | Audit codebase                   | Mar 13 |
+| ~~No API spec for frontend~~       | ~~Integration blocked~~    | Backend Lead | ✅ Frontend uses Supabase direct | ✅     |
 
 ### Risk Register
 
@@ -273,19 +273,20 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
-| Date       | Task                                   | Owner             | Notes                        |
-| ---------- | -------------------------------------- | ----------------- | ---------------------------- |
-| 2026-03-13 | **Frontend Supabase Integration**      | Frontend Dev      | All 7 services + auth done ✅ |
-| 2026-03-13 | Supabase Auth (login/signup/reset)     | Frontend Dev      | Email-based auth             |
-| 2026-03-13 | Supabase Realtime hooks                | Frontend Dev      | Events + camera heartbeats   |
-| 2026-03-13 | Remove mock data from all pages        | Frontend Dev      | Monitoring, useCameras       |
-| 2026-03-13 | Socket.IO env variable fix             | Frontend Dev      | VITE_WS_URL used             |
-| 2026-03-13 | Database deployed to Supabase          | Database Engineer | 25 tables, RLS, triggers     |
-| 2026-03-12 | Database ERD complete                  | Database Engineer | All 3 tiers documented       |
-| 2026-03-12 | V2 compatibility analysis              | Tech Lead         | Migration plan ready         |
-| 2026-03-12 | Feature coverage analysis              | Product Owner     | Gaps identified              |
-| 2026-03-12 | Master plan structure created          | Tech Lead         | Folders organized            |
-| 2026-03-12 | Frontend implementation guide created  | Tech Lead         | One-shot prompt ready        |
+| Date       | Task                                  | Owner             | Notes                             |
+| ---------- | ------------------------------------- | ----------------- | --------------------------------- |
+| 2026-03-14 | **Auth UI Redesign & Session Fix**    | Frontend Dev      | Split-screen UI, timeout handling |
+| 2026-03-13 | **Frontend Supabase Integration**     | Frontend Dev      | All 7 services + auth done ✅     |
+| 2026-03-13 | Supabase Auth (login/signup/reset)    | Frontend Dev      | Email-based auth                  |
+| 2026-03-13 | Supabase Realtime hooks               | Frontend Dev      | Events + camera heartbeats        |
+| 2026-03-13 | Remove mock data from all pages       | Frontend Dev      | Monitoring, useCameras            |
+| 2026-03-13 | Socket.IO env variable fix            | Frontend Dev      | VITE_WS_URL used                  |
+| 2026-03-13 | Database deployed to Supabase         | Database Engineer | 25 tables, RLS, triggers          |
+| 2026-03-12 | Database ERD complete                 | Database Engineer | All 3 tiers documented            |
+| 2026-03-12 | V2 compatibility analysis             | Tech Lead         | Migration plan ready              |
+| 2026-03-12 | Feature coverage analysis             | Product Owner     | Gaps identified                   |
+| 2026-03-12 | Master plan structure created         | Tech Lead         | Folders organized                 |
+| 2026-03-12 | Frontend implementation guide created | Tech Lead         | One-shot prompt ready             |
 
 ---
 
@@ -296,7 +297,7 @@ Velocity: 8 tasks/sprint ✅
 - [x] ~~Get Supabase project credentials (DevOps)~~ ✅
 - [x] ~~Run initial DDL scripts (Database)~~ ✅
 - [ ] Configure Storage buckets (Backend)
-- [ ] Create OpenAPI spec for Defense Plan APIs (Backend) — *may skip: frontend uses Supabase direct*
+- [ ] Create OpenAPI spec for Defense Plan APIs (Backend) — _may skip: frontend uses Supabase direct_
 
 ### Next Week (Mar 16-22)
 
@@ -307,7 +308,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-13 16:50 WITA  
+**Last Updated**: 2026-03-14 10:00 WITA  
 **Next Review**: 2026-03-15 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 
