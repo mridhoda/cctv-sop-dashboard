@@ -30,6 +30,7 @@ const ROLE_PERMISSIONS = {
     "reports",
     "cameras",
     "settings",
+    "profile",
   ],
   admin: [
     "home",
@@ -39,9 +40,10 @@ const ROLE_PERMISSIONS = {
     "reports",
     "cameras",
     "settings",
+    "profile",
   ],
-  operator: ["home", "monitoring", "history", "reports"],
-  viewer: ["monitoring"],
+  operator: ["home", "monitoring", "history", "reports", "profile"],
+  viewer: ["monitoring", "profile"],
 };
 
 export function AuthProvider({ children }) {
@@ -175,8 +177,13 @@ export function AuthProvider({ children }) {
         username: profile.username || profile.email || user?.email,
         name: profile.name || profile.username,
         role: profile.role || "viewer",
+        role_label: profile.role_label,
         tenant_id: profile.tenant_id,
         avatar_url: profile.avatar_url,
+        phone: profile.phone,
+        is_active: profile.is_active,
+        last_login: profile.last_login,
+        created_at: profile.created_at,
       }
     : null;
 

@@ -273,20 +273,23 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
-| Date       | Task                                  | Owner             | Notes                             |
-| ---------- | ------------------------------------- | ----------------- | --------------------------------- |
-| 2026-03-14 | **Auth UI Redesign & Session Fix**    | Frontend Dev      | Split-screen UI, timeout handling |
-| 2026-03-13 | **Frontend Supabase Integration**     | Frontend Dev      | All 7 services + auth done ✅     |
-| 2026-03-13 | Supabase Auth (login/signup/reset)    | Frontend Dev      | Email-based auth                  |
-| 2026-03-13 | Supabase Realtime hooks               | Frontend Dev      | Events + camera heartbeats        |
-| 2026-03-13 | Remove mock data from all pages       | Frontend Dev      | Monitoring, useCameras            |
-| 2026-03-13 | Socket.IO env variable fix            | Frontend Dev      | VITE_WS_URL used                  |
-| 2026-03-13 | Database deployed to Supabase         | Database Engineer | 25 tables, RLS, triggers          |
-| 2026-03-12 | Database ERD complete                 | Database Engineer | All 3 tiers documented            |
-| 2026-03-12 | V2 compatibility analysis             | Tech Lead         | Migration plan ready              |
-| 2026-03-12 | Feature coverage analysis             | Product Owner     | Gaps identified                   |
-| 2026-03-12 | Master plan structure created         | Tech Lead         | Folders organized                 |
-| 2026-03-12 | Frontend implementation guide created | Tech Lead         | One-shot prompt ready             |
+| Date       | Task                                  | Owner             | Notes                                          |
+| ---------- | ------------------------------------- | ----------------- | ---------------------------------------------- |
+| 2026-03-14 | **Profile Page & Invite Generator**   | Frontend Dev      | New profile page, admin invite code generation |
+| 2026-03-14 | **Header UI Sizing Optimization**     | Frontend Dev      | Smaller header, badges, icons                  |
+| 2026-03-14 | **Signup Flow Enhancement**           | Frontend Dev      | Step 2 invite code integration                 |
+| 2026-03-14 | **Auth UI Redesign & Session Fix**    | Frontend Dev      | Split-screen UI, timeout handling              |
+| 2026-03-13 | **Frontend Supabase Integration**     | Frontend Dev      | All 7 services + auth done ✅                  |
+| 2026-03-13 | Supabase Auth (login/signup/reset)    | Frontend Dev      | Email-based auth                               |
+| 2026-03-13 | Supabase Realtime hooks               | Frontend Dev      | Events + camera heartbeats                     |
+| 2026-03-13 | Remove mock data from all pages       | Frontend Dev      | Monitoring, useCameras                         |
+| 2026-03-13 | Socket.IO env variable fix            | Frontend Dev      | VITE_WS_URL used                               |
+| 2026-03-13 | Database deployed to Supabase         | Database Engineer | 25 tables, RLS, triggers                       |
+| 2026-03-12 | Database ERD complete                 | Database Engineer | All 3 tiers documented                         |
+| 2026-03-12 | V2 compatibility analysis             | Tech Lead         | Migration plan ready                           |
+| 2026-03-12 | Feature coverage analysis             | Product Owner     | Gaps identified                                |
+| 2026-03-12 | Master plan structure created         | Tech Lead         | Folders organized                              |
+| 2026-03-12 | Frontend implementation guide created | Tech Lead         | One-shot prompt ready                          |
 
 ---
 

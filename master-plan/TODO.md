@@ -448,6 +448,9 @@ Untuk menambah task baru, gunakan format:
 
 | Date       | Changes                                                | Updated By   |
 | ---------- | ------------------------------------------------------ | ------------ |
+| 2026-03-14 | Profile Page & Invite generator added                  | Frontend Dev |
+| 2026-03-14 | Header UI sizing optimization                          | Frontend Dev |
+| 2026-03-14 | Signup flow multi-scenario invite integration          | Frontend Dev |
 | 2026-03-14 | Auth UI Redesign & Session verification fix            | Frontend Dev |
 | 2026-03-13 | Frontend Supabase integration complete, all P0 FE done | Frontend Dev |
 | 2026-03-12 | Initial creation                                       | Tech Lead    |

@@ -8,6 +8,7 @@ import {
   LogOut,
   Bell,
   Search,
+  ChevronDown,
   ChevronRight,
   Clock,
   MapPin,
@@ -75,6 +76,7 @@ import Identities from "./pages/Identities";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/Settings";
 import CameraManagementPage from "./pages/CameraManagementPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // ─── Dashboard Home Tab ─────────────────────────────────────
 function DashboardHomeTab({ onTabChange, hasPermission }) {
@@ -487,6 +489,26 @@ function DashboardShell() {
     }
   };
 
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest("[data-dropdown]")) {
+        setShowNotifDropdown(false);
+        setShowUserDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  // Derive display role from user object
+  const displayRole = user?.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+    : "User";
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
@@ -572,21 +594,8 @@ function DashboardShell() {
           )}
         </nav>
 
-        {/* User Info */}
-        <div className="px-4 py-2">
-          <div className="flex items-center justify-center gap-3 px-3 py-2">
-            <div className="bg-slate-700 p-1.5 rounded-full text-slate-400">
-              <User size={14} />
-            </div>
-            <span className="text-xs text-slate-400 font-medium truncate">
-              {user?.name || user?.username || "User"}
-            </span>
-            <button className="relative text-slate-400 hover:text-white transition">
-              <Bell size={16} />
-            </button>
-          </div>
-        </div>
-        <div className="border-t border-slate-800 px-4 py-2">
+        {/* Sidebar footer - simplified (moved main user UI to header) */}
+        <div className="border-t border-slate-800 px-4 py-3">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition text-sm"
@@ -598,6 +607,164 @@ function DashboardShell() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100">
+        {/* ── Top Header Bar ── */}
+        <header className="h-12 shrink-0 flex items-center justify-end gap-1.5 px-3 lg:px-4 bg-white border-b border-slate-200">
+          {/* Notification Bell */}
+          <div className="relative" data-dropdown>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNotifDropdown((v) => !v);
+                setShowUserDropdown(false);
+              }}
+              className="relative flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+            >
+              <Bell size={16} />
+              {/* Unread badge */}
+              <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
+                2
+              </span>
+            </button>
+
+            {/* Notification dropdown */}
+            {showNotifDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-800">
+                      Notifikasi
+                    </h4>
+                    <span className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 text-[10px] font-bold text-rose-600">
+                      2
+                    </span>
+                  </div>
+                  <button className="text-[11px] text-slate-500 hover:text-slate-700 font-medium">
+                    ✓ Tandai semua dibaca
+                  </button>
+                </div>
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                  {/* Sample notifications */}
+                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">
+                        Pelanggaran Helm
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        Budi Santoso – Produksi A
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        2 menit lalu
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">
+                        Kamera Offline
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        CCTV 03 – Packing tidak merespons
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        15 menit lalu
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">
+                        SOP Terverifikasi
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        7 staff compliant shift pagi
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        1 jam lalu
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-slate-200" />
+
+          {/* User Profile */}
+          <div className="relative" data-dropdown>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUserDropdown((v) => !v);
+                setShowNotifDropdown(false);
+              }}
+              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                <User size={14} />
+              </div>
+              <div className="hidden sm:flex flex-col items-start gap-0.5">
+                <span className="text-xs font-semibold text-slate-800 leading-none">
+                  {user?.name || user?.username || "User"}
+                </span>
+                <span className="text-[9px] text-slate-500 leading-none">
+                  {displayRole}
+                </span>
+              </div>
+              <ChevronDown
+                size={12}
+                className="text-slate-400 hidden sm:block ml-0.5"
+              />
+            </button>
+
+            {/* User dropdown */}
+            {showUserDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {user?.name || user?.username || "User"}
+                  </p>
+                  <p className="text-[11px] text-slate-500">{displayRole}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveTab("profile");
+                    setShowUserDropdown(false);
+                  }}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  <User size={14} /> Profil
+                </button>
+                {hasPermission("settings") && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("settings");
+                      setShowUserDropdown(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <SettingsIcon size={14} /> Pengaturan
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
+                >
+                  <LogOut size={14} /> Keluar
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6">
           {activeTab === "home" && (
             <DashboardHomeTab
@@ -611,6 +778,7 @@ function DashboardShell() {
           {activeTab === "reports" && <Reports />}
           {activeTab === "cameras" && <CameraManagementPage />}
           {activeTab === "settings" && <SettingsPage />}
+          {activeTab === "profile" && <ProfilePage />}
         </div>
       </main>
     </div>
