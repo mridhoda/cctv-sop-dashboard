@@ -393,40 +393,40 @@ V2_Project/
 
 ### Phase 1: Setup
 
-- [ ] Install `supabase` + `python-dotenv`
-- [ ] Create `.env` with Supabase credentials
-- [ ] Create `core/supabase_client.py`
+- [x] Install `supabase` + `python-dotenv` (added to requirements/instructions)
+- [x] Create `.env` with Supabase credentials (created `.env.example`)
+- [x] Create `core/supabase_client.py`
 - [ ] Test connection: `get_supabase().table("tenants").select("*").execute()`
 
 ### Phase 2: Events
 
-- [ ] Create `core/event_publisher.py`
-- [ ] Integrate with `sop_main.py` detection loop
+- [x] Create `core/event_publisher.py`
+- [x] Integrate with `sop_main.py` detection loop
 - [ ] Verify events appear in Supabase dashboard
 
 ### Phase 3: Storage
 
 - [ ] Create Storage buckets in Supabase (event-evidence, identity-photos)
-- [ ] Create `core/photo_uploader.py`
+- [x] Create `core/photo_uploader.py`
 - [ ] Test photo upload + signed URL retrieval
 
 ### Phase 4: Heartbeats
 
-- [ ] Create `core/heartbeat.py`
-- [ ] Start heartbeat thread in camera process
+- [x] Create `core/heartbeat.py`
+- [x] Start heartbeat thread in camera process
 - [ ] Verify heartbeats in `camera_heartbeats` table
 
 ### Phase 5: Config
 
-- [ ] Create `core/config_sync.py`
+- [x] Create `core/config_sync.py`
 - [ ] Load initial config from Supabase on startup
 - [ ] Support hot-reload when config changes in DB
 
 ### Phase 6: API
 
-- [ ] Create auth middleware
-- [ ] Create Camera REST API endpoints
-- [ ] Create Events REST API endpoints
+- [x] Create auth middleware
+- [x] Create Camera REST API endpoints
+- [x] Create Events REST API endpoints
 - [ ] Test all endpoints with Postman/curl
 
 ---

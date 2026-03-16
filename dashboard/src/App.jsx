@@ -505,9 +505,20 @@ function DashboardShell() {
   }, []);
 
   // Derive display role from user object
-  const displayRole = user?.role
-    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
-    : "User";
+  let displayRole = "User";
+  let hasRoleError = false;
+
+  if (user?._profileError || user?.role === null) {
+    displayRole =
+      typeof user?._profileError === "string"
+        ? user._profileError
+        : "Koneksi Terputus";
+    hasRoleError = true;
+  } else if (user?.role_label) {
+    displayRole = user.role_label;
+  } else if (user?.role) {
+    displayRole = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -711,7 +722,9 @@ function DashboardShell() {
                 <span className="text-xs font-semibold text-slate-800 leading-none">
                   {user?.name || user?.username || "User"}
                 </span>
-                <span className="text-[9px] text-slate-500 leading-none">
+                <span
+                  className={`text-[9px] leading-none ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
+                >
                   {displayRole}
                 </span>
               </div>
@@ -728,7 +741,11 @@ function DashboardShell() {
                   <p className="text-sm font-semibold text-slate-800 truncate">
                     {user?.name || user?.username || "User"}
                   </p>
-                  <p className="text-[11px] text-slate-500">{displayRole}</p>
+                  <p
+                    className={`text-[11px] ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
+                  >
+                    {displayRole}
+                  </p>
                 </div>
                 <button
                   onClick={() => {

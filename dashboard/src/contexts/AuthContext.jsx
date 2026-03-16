@@ -67,16 +67,33 @@ export function AuthProvider({ children }) {
       return data;
     } catch (err) {
       console.warn("[Auth] Profile fetch failed:", err.message);
-      // Fallback: use auth user metadata
-      const fallback = {
-        id: authUser.id,
-        email: authUser.email,
-        name: authUser.user_metadata?.name || authUser.email?.split("@")[0],
-        role: authUser.user_metadata?.role || "viewer",
-        username: authUser.email,
-      };
-      setProfile(fallback);
-      return fallback;
+      // Retry once before giving up
+      try {
+        console.info("[Auth] Retrying profile fetch...");
+        const data = await withTimeout(
+          fetchProfile(authUser.id),
+          10000,
+          "Profile fetch retry timeout",
+        );
+        setProfile(data);
+        return data;
+      } catch (retryErr) {
+        console.error(
+          "[Auth] Profile fetch failed after retry:",
+          retryErr.message,
+        );
+        // Set error state — do NOT fake a role
+        const errorProfile = {
+          id: authUser.id,
+          email: authUser.email,
+          name: authUser.user_metadata?.name || authUser.email?.split("@")[0],
+          role: null, // Explicitly null = unknown, NOT "viewer"
+          username: authUser.email,
+          _profileError: retryErr.message, // Capture exact error for debugging
+        };
+        setProfile(errorProfile);
+        return errorProfile;
+      }
     }
   }, []);
 
@@ -138,6 +155,11 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, [loadProfile]);
 
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    return loadProfile(user);
+  }, [user, loadProfile]);
+
   const login = useCallback(
     async ({ email, password }) => {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -176,7 +198,8 @@ export function AuthProvider({ children }) {
         email: user?.email,
         username: profile.username || profile.email || user?.email,
         name: profile.name || profile.username,
-        role: profile.role || "viewer",
+        role: profile.role || null,
+        _profileError: profile._profileError || false,
         role_label: profile.role_label,
         tenant_id: profile.tenant_id,
         avatar_url: profile.avatar_url,
@@ -217,6 +240,8 @@ export function AuthProvider({ children }) {
         loading,
         getAllowedTabs,
         hasPermission,
+        profileError: profile?._profileError || false,
+        refreshProfile,
       }}
     >
       {children}

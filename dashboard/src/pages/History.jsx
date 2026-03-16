@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   AlertTriangle,
   CheckCircle,
@@ -12,9 +12,10 @@ import {
   MapPin,
   User,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
-import { exportEventsCSV } from "../services/events";
+import { exportEventsCSV, getPhotoSignedUrl } from "../services/events";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { useToast } from "../components/ui/Toast";
@@ -143,10 +144,24 @@ export default function History() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const { addToast } = useToast();
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
 
   const itemsPerPage = 5;
+
+  // Load photo URL when selected incident changes
+  useEffect(() => {
+    async function loadPhotoUrl() {
+      if (selectedIncident?.foto) {
+        const url = await getPhotoSignedUrl(selectedIncident.foto, 3600);
+        setPhotoUrl(url);
+      } else {
+        setPhotoUrl(null);
+      }
+    }
+    loadPhotoUrl();
+  }, [selectedIncident]);
 
   // Fetch events from API
   const {
@@ -525,11 +540,22 @@ export default function History() {
                   Foto Bukti
                 </p>
                 <div className="rounded-lg overflow-hidden bg-slate-100 aspect-video flex items-center justify-center">
-                  <img
-                    src={selectedIncident.foto}
-                    alt="Bukti Pelanggaran"
-                    className="w-full h-full object-cover"
-                  />
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt="Bukti Pelanggaran"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "flex";
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-slate-400">
+                      <Camera size={48} />
+                      <span className="text-sm mt-2">Foto tidak tersedia</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

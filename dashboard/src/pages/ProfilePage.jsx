@@ -171,7 +171,17 @@ export default function ProfilePage() {
   const tenant = profile?.tenants;
   const plan = PLAN_STYLES[tenant?.plan_tier] || PLAN_STYLES.defense;
   const PlanIcon = plan.icon;
-  const roleStyle = ROLE_STYLES[profile?.role] || ROLE_STYLES.viewer;
+
+  // Safe role handling
+  let roleStyle = ROLE_STYLES.viewer;
+  let roleLabel = ROLE_STYLES.viewer.label;
+  if (user?._profileError || profile?.role === null) {
+    roleStyle = { color: "bg-rose-100 text-rose-700 border-rose-200" };
+    roleLabel = "Koneksi Terputus";
+  } else if (profile?.role && ROLE_STYLES[profile.role]) {
+    roleStyle = ROLE_STYLES[profile.role];
+    roleLabel = profile?.role_label || roleStyle.label;
+  }
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
@@ -219,7 +229,7 @@ export default function ProfilePage() {
                   )}
                 >
                   <Shield size={10} />
-                  {profile?.role_label || roleStyle.label}
+                  {roleLabel}
                 </span>
                 {/* Plan badge */}
                 <span
@@ -368,7 +378,7 @@ export default function ProfilePage() {
                     roleStyle.color,
                   )}
                 >
-                  {profile?.role_label || roleStyle.label}
+                  {roleLabel}
                 </span>
               }
             />

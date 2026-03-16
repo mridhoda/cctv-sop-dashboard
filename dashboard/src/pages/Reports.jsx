@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
 import { exportEventsCSV } from "../services/events";
+import { getPhotoUrl } from "../lib/storage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { useToast } from "../components/ui/Toast";
@@ -57,7 +58,8 @@ export default function Reports() {
     : apiData?.data || FALLBACK_REPORTS;
   const allReports = rawReports.map((r) => ({
     id: r.id,
-    filename: r.filename || r.photo_path || `RPT-${r.id}.jpg`,
+    photo_path: r.photo_path || r.photo_url || null,
+    filename: r.filename || r.photo_path?.split("/").pop() || `RPT-${r.id}.jpg`,
     timestamp: r.timestamp || r.time || r.created_at || "—",
     location: r.location || r.camera_name || "—",
     type:
@@ -67,6 +69,10 @@ export default function Reports() {
     confidenceScore:
       r.confidenceScore || r.confidence || r.confidence_score || 0,
   }));
+
+  // Resolve photo URL langsung (sync) — supports full URL (local/tunnel) & legacy Supabase path
+  const getReportPhotoUrl = (report) =>
+    getPhotoUrl("event-evidence", report.photo_path);
 
   const filtered = allReports.filter((report) => {
     if (filterType === "ALL") return true;
@@ -195,10 +201,26 @@ export default function Reports() {
                 onClick={() => setSelectedReport(report)}
                 className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden text-left"
               >
-                {/* Photo Placeholder */}
-                <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-48 flex items-center justify-center border-b border-slate-200 relative group">
-                  <Camera size={40} className="text-slate-500" />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
+                {/* Photo Preview */}
+                <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-48 flex items-center justify-center border-b border-slate-200 relative group overflow-hidden">
+                  {photoUrls[report.id] ? (
+                    <img
+                      src={photoUrls[report.id]}
+                      alt={report.filename}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "flex";
+                      }}
+                    />
+                  ) : (
+                    <Camera size={40} className="text-slate-500" />
+                  )}
+                  <div
+                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center"
+                    style={{ display: photoUrls[report.id] ? "flex" : "none" }}
+                  >
                     <Image
                       size={32}
                       className="text-white opacity-0 group-hover:opacity-100 transition"
@@ -273,8 +295,20 @@ export default function Reports() {
             {/* Modal Body */}
             <div className="p-6">
               {/* Photo Preview */}
-              <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-96 rounded-xl flex items-center justify-center border border-slate-300 mb-6">
-                <Camera size={64} className="text-slate-500" />
+              <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-96 rounded-xl flex items-center justify-center border border-slate-300 mb-6 overflow-hidden">
+                {selectedReport && photoUrls[selectedReport.id] ? (
+                  <img
+                    src={photoUrls[selectedReport.id]}
+                    alt={selectedReport.filename}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
+                ) : (
+                  <Camera size={64} className="text-slate-500" />
+                )}
               </div>
 
               {/* Details Grid */}

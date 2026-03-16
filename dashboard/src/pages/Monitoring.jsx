@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 import { useSocket, useSocketEvent } from "../hooks/useSocket";
 import { useCameras } from "../hooks/useCameras";
+import { useStreamQuality } from "../hooks/useStreamQuality";
 import { cn } from "../utils/cn";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import QualitySelector from "../components/stream/QualitySelector";
 
 const API_BASE = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
 
@@ -67,6 +69,7 @@ function StreamViewer({
   cameraName,
   onSnapshot,
   selectedCam,
+  quality,
 }) {
   const [streamKey, setStreamKey] = useState(0);
   const [previewKey, setPreviewKey] = useState(0);
@@ -78,13 +81,20 @@ function StreamViewer({
 
   const isPortrait = rotation === 90 || rotation === 270;
 
+  // Reset stream state when quality changes so the hidden loader re-triggers
+  useEffect(() => {
+    setIsImageLoaded(false);
+    hasNotifiedLive.current = false;
+    setStreamKey((k) => k + 1);
+  }, [quality]);
+
   const streamSrc = useMemo(
-    () => `${API_BASE}/api/stream/video?k=${streamKey}`,
-    [streamKey],
+    () => `${API_BASE}/api/stream/video?quality=${quality}&k=${streamKey}`,
+    [streamKey, quality],
   );
   const previewSrc = useMemo(
-    () => `${API_BASE}/api/stream/snapshot?t=${previewKey}`,
-    [previewKey],
+    () => `${API_BASE}/api/stream/snapshot?quality=${quality}&t=${previewKey}`,
+    [previewKey, quality],
   );
 
   const handleRotate = () => {
@@ -139,12 +149,13 @@ function StreamViewer({
 
   return (
     <div className="relative flex flex-1 min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-inner">
-      {/* Hidden image loader */}
+      {/* Hidden image loader — use zero-size instead of display:none
+           so the browser actually loads the MJPEG stream and fires events */}
       {(showConnecting || (streamStatus === "live" && !isImageLoaded)) && (
         <img
           src={streamSrc}
           alt=""
-          className="hidden"
+          className="absolute w-0 h-0 overflow-hidden opacity-0"
           onError={handleImageError}
           onLoad={handleImageLoad}
         />
@@ -307,6 +318,12 @@ export default function Monitoring({ currentUser }) {
   const [engineStatus, setEngineStatus] = useState("running");
   const [isLoading, setIsLoading] = useState(false);
   const [streamStatus, setStreamStatus] = useState("offline");
+  const {
+    qualities,
+    selectedQuality,
+    selectQuality,
+    isLoading: isQualityLoading,
+  } = useStreamQuality();
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState({
     detections: 0,
@@ -364,7 +381,11 @@ export default function Monitoring({ currentUser }) {
         second: "2-digit",
       }),
     };
-    setEvents((prev) => [newEvent, ...prev].slice(0, 50));
+    setEvents((prev) => {
+      // Skip duplicate events (backend may emit the same detection multiple times)
+      if (prev.some((e) => e.id === newEvent.id)) return prev;
+      return [newEvent, ...prev].slice(0, 50);
+    });
   });
 
   // Engine control
@@ -390,7 +411,10 @@ export default function Monitoring({ currentUser }) {
   };
 
   const handleSnapshot = () => {
-    window.open(`${API_BASE}/api/stream/snapshot?t=${Date.now()}`, "_blank");
+    window.open(
+      `${API_BASE}/api/stream/snapshot?quality=${selectedQuality}&t=${Date.now()}`,
+      "_blank",
+    );
   };
 
   // REST polling fallback
@@ -469,11 +493,12 @@ export default function Monitoring({ currentUser }) {
               cameraName={selectedCam.name}
               selectedCam={selectedCam}
               onSnapshot={handleSnapshot}
+              quality={selectedQuality}
             />
 
             {/* Controls & Quick Stats - Compact */}
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <button className="flex items-center space-x-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
                   <RotateCcw size={14} />
                   <span className="hidden sm:inline">Rotate</span>
@@ -485,12 +510,12 @@ export default function Monitoring({ currentUser }) {
                   <Camera size={14} />
                   <span className="hidden sm:inline">Snapshot</span>
                 </button>
-                <button className="flex items-center space-x-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
-                  <Monitor size={14} />
-                  <span className="hidden sm:inline">
-                    {selectedCam.resolution}
-                  </span>
-                </button>
+                <QualitySelector
+                  qualities={qualities}
+                  selectedQuality={selectedQuality}
+                  onSelect={selectQuality}
+                  isLoading={isQualityLoading}
+                />
               </div>
 
               <div className="flex space-x-2">

@@ -12,7 +12,15 @@ import { supabase } from "../lib/supabase";
  * @param {string} [params.search]
  */
 export async function fetchEvents(params = {}) {
-  const { page = 1, limit = 20, status, camera_id, date_from, date_to, search } = params;
+  const {
+    page = 1,
+    limit = 20,
+    status,
+    camera_id,
+    date_from,
+    date_to,
+    search,
+  } = params;
 
   let query = supabase
     .from("events")
@@ -144,4 +152,40 @@ export async function exportEventsCSV(params = {}) {
   link.download = `events_export_${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Generate a signed URL for a photo from Supabase Storage.
+ * @param {string} photoPath - The path to the photo in storage (e.g., "tenant-id/2026/03/14/filename.jpg")
+ * @param {number} [expiresIn=3600] - Expiration time in seconds (default 1 hour)
+ * @returns {Promise<string|null>} The signed URL or null if no photo_path
+ */
+export async function getPhotoSignedUrl(photoPath, expiresIn = 3600) {
+  if (!photoPath) return null;
+
+  const { data, error } = await supabase.storage
+    .from("event-evidence")
+    .createSignedUrl(photoPath, expiresIn);
+
+  if (error) {
+    console.error("Error generating signed URL:", error);
+    return null;
+  }
+
+  return data?.signedUrl || null;
+}
+
+/**
+ * Get public URL for a photo (if bucket is public).
+ * @param {string} photoPath - The path to the photo in storage
+ * @returns {string|null} The public URL or null if no photo_path
+ */
+export function getPhotoPublicUrl(photoPath) {
+  if (!photoPath) return null;
+
+  const { data } = supabase.storage
+    .from("event-evidence")
+    .getPublicUrl(photoPath);
+
+  return data?.publicUrl || null;
 }
