@@ -54,15 +54,16 @@ Master Plan ini dibuat untuk:
 
 **Target**: Single camera, basic detection, local deployment
 
-**Status**: 🟡 In Progress
+**Status**: ✅ Complete
 
-| Komponen                  | Status                     | Priority |
-| ------------------------- | -------------------------- | -------- |
-| Database Schema (Defense) | ✅ Complete                | P0       |
-| V2 Compatibility Analysis | ✅ Complete                | P0       |
-| Backend Single Camera     | ⚠️ Exists (needs refactor) | P0       |
-| Frontend Basic UI         | ✅ Complete (Supabase)     | P0       |
-| Auth & Login              | ✅ Complete (Supabase)     | P0       |
+| Komponen                  | Status                 | Priority |
+| ------------------------- | ---------------------- | -------- |
+| Database Schema (Defense) | ✅ Complete            | P0       |
+| V2 Compatibility Analysis | ✅ Complete            | P0       |
+| Backend Single Camera     | ✅ Complete (Modular)  | P0       |
+| Frontend Basic UI         | ✅ Complete (Supabase) | P0       |
+| Auth & Login              | ✅ Complete (Supabase) | P0       |
+| Photo Storage (Local)     | ✅ Complete (Tunnel)   | P0       |
 
 ### 🛡️ Tier 2: Guardian Plan (Multi-Camera)
 
@@ -222,7 +223,7 @@ Master Plan ini "complete" ketika:
 
 ---
 
-**Last Updated**: 2026-03-13  
+**Last Updated**: 2026-03-17  
 **Version**: 1.0  
 **Status**: 🟡 Active Development
 

@@ -25,10 +25,16 @@ pip install supabase python-dotenv
 ### 1.2 Environment Variables
 
 ```env
-# .env (V2_Project root)
+# .env (V2_Project/server root)
 SUPABASE_URL=https://evgvnmnllpgxcsmxfjrn.supabase.co
 SUPABASE_SERVICE_KEY=<service_role_key>
-SUPABASE_ANON_KEY=<anon_key>
+
+# Camera & Tenant
+CAMERA_ID=cam-001
+TENANT_ID=<tenant_id>
+
+# Public URL (Cloudflare Tunnel)
+PUBLIC_BASE_URL=https://api.foodiserver.my.id
 
 # Existing V2 config
 CAMERA_SOURCE=rtsp://user:pass@ip:554/stream1
@@ -125,8 +131,9 @@ def on_detection(detection_result):
     # 1. Save foto ke local (existing)
     photo_path = save_photo_local(detection_result)
 
-    # 2. Upload foto ke Supabase Storage
-    storage_path = upload_to_supabase(photo_path)
+    # 2. Get Public URL (Local File + CF Tunnel)
+    filename = os.path.basename(photo_path)
+    public_url = photo_manager.get_public_url(filename)
 
     # 3. Publish event ke Supabase DB
     publisher.publish_event({
@@ -135,7 +142,7 @@ def on_detection(detection_result):
         "missing_sops": detection_result.get("missing_sops"),
         "confidence_person": detection_result["conf_person"],
         "confidence_sop": detection_result["conf_sop"],
-        "photo_path": storage_path,
+        "photo_path": public_url,
         "location": config["camera_location"],
         "staff_name": detection_result.get("person_name"),
         "track_id": detection_result.get("track_id"),
@@ -147,40 +154,21 @@ def on_detection(detection_result):
 
 ---
 
-## Phase 3: Photo Storage (Supabase Storage)
+## Phase 3: Photo Management (Local & CF Tunnel)
 
-### 3.1 Photo Uploader
+### 3.1 Local Photo Manager
 
 ```python
-# core/photo_uploader.py
+# server/supabase/photo_storage.py
 import os
-from datetime import datetime
-from core.supabase_client import get_supabase
 
-class PhotoUploader:
-    def __init__(self, bucket: str = "event-evidence"):
-        self.supabase = get_supabase()
-        self.bucket = bucket
-
-    def upload(self, local_path: str, camera_id: str) -> str | None:
-        """Upload photo to Supabase Storage, return storage path."""
-        if not os.path.exists(local_path):
+class LocalPhotoManager:
+    def get_public_url(self, filename: str) -> str | None:
+        """Build public URL for local photo via CF Tunnel."""
+        base_url = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+        if not base_url:
             return None
-
-        filename = os.path.basename(local_path)
-        date_prefix = datetime.now().strftime("%Y/%m/%d")
-        storage_path = f"{camera_id}/{date_prefix}/{filename}"
-
-        try:
-            with open(local_path, "rb") as f:
-                self.supabase.storage.from_(self.bucket).upload(
-                    storage_path, f,
-                    file_options={"content-type": "image/jpeg"}
-                )
-            return storage_path
-        except Exception as e:
-            print(f"[ERROR] Upload failed: {e}")
-            return None
+        return f"{base_url}/api/reports/{filename}"
 ```
 
 ---
@@ -366,25 +354,20 @@ def delete_camera(camera_id):
 
 ```
 V2_Project/
-├── core/                          # NEW: Supabase integration
-│   ├── supabase_client.py         ← Singleton client
-│   ├── event_publisher.py         ← Dual-write events
-│   ├── photo_uploader.py          ← Storage upload
-│   ├── heartbeat.py               ← Camera health reporting
-│   └── config_sync.py             ← Config sync
 ├── server/
-│   ├── middleware/
-│   │   └── auth.py                ← JWT validation
+│   ├── supabase/               # Supabase integration
+│   │   ├── event_repository.py ← Publish events
+│   │   ├── photo_storage.py    ← Local URL management
+│   │   ├── heartbeat.py        ← Camera health reporting
+│   │   └── config_sync.py      ← Config sync
 │   ├── api/
-│   │   ├── cameras.py             ← Camera CRUD
-│   │   ├── events.py              ← Events API
-│   │   └── config.py              ← Config API
-│   └── websocket/
-│       └── handlers.py            ← Socket.IO handlers
-├── sop_main.py                    ← MODIFIED: + event_publisher
-├── engine_ws_client.py            ← MODIFIED: + camera_id rooms
-├── config.json                    ← EXISTING: local config
-└── .env                           ← NEW: Supabase credentials
+│   │   ├── reports.py          ← Serving local files
+│   │   ├── cameras.py          ← Camera CRUD
+│   │   └── events.py           ← Events API
+├── engine/
+│   ├── sop_main.py             ← MODIFIED: + photo_manager
+├── config.json                 ← EXISTING: local config
+└── .env                        ← NEW: Supabase credentials
 ```
 
 ---
@@ -406,9 +389,9 @@ V2_Project/
 
 ### Phase 3: Storage
 
-- [ ] Create Storage buckets in Supabase (event-evidence, identity-photos)
-- [x] Create `core/photo_uploader.py`
-- [ ] Test photo upload + signed URL retrieval
+- [x] Configure Local Storage + CF Tunnel
+- [x] Create `server/supabase/photo_storage.py`
+- [x] Test direct URL accessibility via tunnel
 
 ### Phase 4: Heartbeats
 

@@ -20,7 +20,12 @@ export async function fetchEvents(params = {}) {
     date_from,
     date_to,
     search,
+    has_photo, // when true: only events with photo_path
   } = params;
+
+  // Abort after 15 seconds so the UI never hangs indefinitely
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
 
   let query = supabase
     .from("events")
@@ -41,18 +46,22 @@ export async function fetchEvents(params = {}) {
   if (camera_id) query = query.eq("camera_id", camera_id);
   if (date_from) query = query.gte("timestamp", date_from);
   if (date_to) query = query.lte("timestamp", date_to);
+  if (has_photo) query = query.not("photo_path", "is", null);
   if (search) query = query.textSearch("search_vector", search);
 
-  const { data, error, count } = await query;
-  if (error) throw error;
-
-  return {
-    data: data || [],
-    total: count || 0,
-    page,
-    limit,
-    totalPages: Math.ceil((count || 0) / limit),
-  };
+  try {
+    const { data, error, count } = await query.abortSignal(controller.signal);
+    if (error) throw error;
+    return {
+      data: data || [],
+      total: count || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((count || 0) / limit),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -163,6 +172,11 @@ export async function exportEventsCSV(params = {}) {
 export async function getPhotoSignedUrl(photoPath, expiresIn = 3600) {
   if (!photoPath) return null;
 
+  // If it's already a full HTTP URL (e.g., from local backend storage), return it directly
+  if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
+    return photoPath;
+  }
+
   const { data, error } = await supabase.storage
     .from("event-evidence")
     .createSignedUrl(photoPath, expiresIn);
@@ -182,6 +196,11 @@ export async function getPhotoSignedUrl(photoPath, expiresIn = 3600) {
  */
 export function getPhotoPublicUrl(photoPath) {
   if (!photoPath) return null;
+
+  // If it's already a full HTTP URL (e.g., from local backend storage), return it directly
+  if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
+    return photoPath;
+  }
 
   const { data } = supabase.storage
     .from("event-evidence")

@@ -19,9 +19,9 @@
  *   - request_snapshot → (no payload)
  */
 import { io } from "socket.io-client";
+import { getSocketUrl } from "../utils/url";
 
-const SOCKET_URL =
-  import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
+const SOCKET_URL = getSocketUrl();
 
 let socket = null;
 
@@ -41,7 +41,7 @@ export function getSocket() {
       timeout: 10000,
       transports: ["websocket", "polling"],
     });
-    
+
     // Debug listeners
     socket.on("connect", () => {
       console.log("[Socket] Connected successfully");

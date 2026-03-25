@@ -122,7 +122,8 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
     },
   ];
 
-  if (summaryLoading || incidentsLoading || camerasLoading) {
+  // Only block on the primary summary query — incidents & cameras render progressively
+  if (summaryLoading) {
     return <LoadingSpinner message="Memuat dashboard..." />;
   }
 

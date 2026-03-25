@@ -581,29 +581,40 @@ export function useRealtimeCameraStatus() {
 // src/lib/storage.js
 import { supabase } from "./supabase";
 
+/**
+ * Smart resolver for photo_path.
+ * Handles:
+ * 1. Full URLs (local storage via tunnel)
+ * 2. Supabase storage paths (legacy)
+ */
+export function getPhotoUrl(bucket, path) {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export function getPublicUrl(bucket, path) {
   if (!path) return null;
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
-export function getSignedUrl(bucket, path, expiresIn = 3600) {
-  if (!path) return null;
-  return supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
-}
-
 // Usage in components:
-// const photoUrl = getPublicUrl('event-evidence', event.photo_path)
+// import { getPhotoUrl } from '../lib/storage';
+// const photoUrl = getPhotoUrl('event-evidence', event.photo_path)
 // <img src={photoUrl} alt="Evidence" />
 ```
 
 ### 6.2 Storage Buckets Required
 
-| Bucket            | Purpose                     |     Public?      |
-| :---------------- | :-------------------------- | :--------------: |
-| `event-evidence`  | SOP violation/valid photos  | No (signed URLs) |
-| `identity-photos` | Face photos for recognition | No (signed URLs) |
-| `config-exports`  | CSV/PDF exports             | No (signed URLs) |
+| Bucket            | Purpose                     |   Serving Method   |
+| :---------------- | :-------------------------- | :----------------: |
+| `event-evidence`  | SOP violation/valid photos  | **Local + Tunnel** |
+| `identity-photos` | Face photos for recognition |  Supabase Storage  |
+| `config-exports`  | CSV/PDF exports             |  Supabase Storage  |
 
 ---
 

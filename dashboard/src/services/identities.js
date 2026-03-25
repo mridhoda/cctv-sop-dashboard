@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { getApiBaseUrl } from "../utils/url";
 
 /**
  * Fetch all identities with their face photos.
@@ -98,9 +99,9 @@ export async function uploadPhoto(identityId, file) {
  */
 export async function triggerEncode(id) {
   // Try the backend API first (requires engine running)
-  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+  const apiBase = getApiBaseUrl();
   try {
-    const res = await fetch(`${apiBase}/identities/${id}/encode`, {
+    const res = await fetch(`${apiBase}/api/identities/${id}/encode`, {
       method: "POST",
     });
     if (res.ok) return await res.json();

@@ -7,32 +7,41 @@ export async function fetchDashboardSummary() {
   const today = new Date().toISOString().split("T")[0];
   const startOfDay = `${today}T00:00:00`;
 
-  const [totalResult, violationResult] = await Promise.all([
-    supabase
-      .from("events")
-      .select("*", { count: "exact", head: true })
-      .gte("timestamp", startOfDay),
-    supabase
-      .from("events")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "violation")
-      .gte("timestamp", startOfDay),
-  ]);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
 
-  const totalToday = totalResult.count || 0;
-  const violationsToday = violationResult.count || 0;
-  const complianceRate =
-    totalToday > 0
-      ? parseFloat(
-          (((totalToday - violationsToday) / totalToday) * 100).toFixed(1),
-        )
-      : 100;
+  try {
+    const [totalResult, violationResult] = await Promise.all([
+      supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .gte("timestamp", startOfDay)
+        .abortSignal(controller.signal),
+      supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "violation")
+        .gte("timestamp", startOfDay)
+        .abortSignal(controller.signal),
+    ]);
 
-  return {
-    total_detections: totalToday,
-    total_incidents: violationsToday,
-    compliance_rate: complianceRate,
-  };
+    const totalToday = totalResult.count || 0;
+    const violationsToday = violationResult.count || 0;
+    const complianceRate =
+      totalToday > 0
+        ? parseFloat(
+            (((totalToday - violationsToday) / totalToday) * 100).toFixed(1),
+          )
+        : 100;
+
+    return {
+      total_detections: totalToday,
+      total_incidents: violationsToday,
+      compliance_rate: complianceRate,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

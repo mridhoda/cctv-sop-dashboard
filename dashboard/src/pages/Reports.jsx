@@ -203,9 +203,9 @@ export default function Reports() {
               >
                 {/* Photo Preview */}
                 <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-48 flex items-center justify-center border-b border-slate-200 relative group overflow-hidden">
-                  {photoUrls[report.id] ? (
+                  {getReportPhotoUrl(report) ? (
                     <img
-                      src={photoUrls[report.id]}
+                      src={getReportPhotoUrl(report)}
                       alt={report.filename}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -219,7 +219,9 @@ export default function Reports() {
                   )}
                   <div
                     className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center"
-                    style={{ display: photoUrls[report.id] ? "flex" : "none" }}
+                    style={{
+                      display: getReportPhotoUrl(report) ? "flex" : "none",
+                    }}
                   >
                     <Image
                       size={32}
@@ -296,9 +298,9 @@ export default function Reports() {
             <div className="p-6">
               {/* Photo Preview */}
               <div className="bg-gradient-to-br from-slate-200 to-slate-300 h-96 rounded-xl flex items-center justify-center border border-slate-300 mb-6 overflow-hidden">
-                {selectedReport && photoUrls[selectedReport.id] ? (
+                {selectedReport && getReportPhotoUrl(selectedReport) ? (
                   <img
-                    src={photoUrls[selectedReport.id]}
+                    src={getReportPhotoUrl(selectedReport)}
                     alt={selectedReport.filename}
                     className="w-full h-full object-contain"
                     onError={(e) => {

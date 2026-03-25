@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { getApiBaseUrl } from "../utils/url";
 
-const API_BASE = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
+const API_BASE = getApiBaseUrl();
 const DEFAULT_QUALITY = "720p";
 
 /**

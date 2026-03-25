@@ -17,16 +17,19 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { useSocket, useSocketEvent } from "../hooks/useSocket";
 import { useCameras } from "../hooks/useCameras";
 import { useStreamQuality } from "../hooks/useStreamQuality";
 import { cn } from "../utils/cn";
+import { getApiBaseUrl } from "../utils/url";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import QualitySelector from "../components/stream/QualitySelector";
 
-const API_BASE = import.meta.env.VITE_WS_URL || "https://api.foodiserver.my.id";
+const API_BASE = getApiBaseUrl();
 
 const SEVERITY_STYLES = {
   alert: {
@@ -71,12 +74,14 @@ function StreamViewer({
   selectedCam,
   quality,
 }) {
+  const containerRef = useRef(null);
   const [streamKey, setStreamKey] = useState(0);
   const [previewKey, setPreviewKey] = useState(0);
   const [isPreviewAvailable, setIsPreviewAvailable] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [clockTime, setClockTime] = useState("");
   const [rotation, setRotation] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const hasNotifiedLive = useRef(false);
 
   const isPortrait = rotation === 90 || rotation === 270;
@@ -101,6 +106,24 @@ function StreamViewer({
     setRotation((prev) => (prev + 90) % 360);
   };
 
+  const handleToggleFullscreen = async () => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    try {
+      if (document.fullscreenElement === element) {
+        await document.exitFullscreen?.();
+      } else if (!document.fullscreenElement) {
+        await element.requestFullscreen?.();
+      } else {
+        await document.exitFullscreen?.();
+        await element.requestFullscreen?.();
+      }
+    } catch (err) {
+      console.warn("[StreamViewer] Fullscreen failed:", err);
+    }
+  };
+
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -119,6 +142,17 @@ function StreamViewer({
       hasNotifiedLive.current = false;
     }
   }, [streamStatus]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   const handleImageError = () => {
     setIsImageLoaded(false);
@@ -148,7 +182,10 @@ function StreamViewer({
   }, [streamStatus]);
 
   return (
-    <div className="relative flex flex-1 min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-inner">
+    <div
+      ref={containerRef}
+      className="relative group flex flex-1 min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-inner"
+    >
       {/* Hidden image loader — use zero-size instead of display:none
            so the browser actually loads the MJPEG stream and fires events */}
       {(showConnecting || (streamStatus === "live" && !isImageLoaded)) && (
@@ -209,15 +246,30 @@ function StreamViewer({
             {cameraName} — {selectedCam.area}
           </span>
         </div>
-        {streamStatus === "live" && isImageLoaded && (
+        <div className="flex items-center gap-2 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto">
+          {streamStatus === "live" && isImageLoaded && (
+            <button
+              onClick={handleRotate}
+              className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+              title="Rotate"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              Rotate
+            </button>
+          )}
           <button
-            onClick={handleRotate}
+            onClick={handleToggleFullscreen}
             className="flex items-center gap-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
-            <RotateCw className="w-3.5 h-3.5" />
-            Rotate
+            {isFullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" />
+            )}
+            {isFullscreen ? "Exit" : "Fullscreen"}
           </button>
-        )}
+        </div>
       </div>
 
       {/* Placeholder when not live */}
@@ -242,7 +294,7 @@ function StreamViewer({
             </div>
           )}
           {(showError || showOffline) && (
-            <div className="mt-4">
+            <div className="mt-4 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto">
               <button
                 onClick={() => {
                   setIsImageLoaded(false);
@@ -266,7 +318,7 @@ function StreamViewer({
           {clockTime}
         </span>
         {streamStatus === "live" && isImageLoaded && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 opacity-0 pointer-events-none transition-opacity duration-200 group-hover:opacity-100 group-hover:pointer-events-auto">
             <button
               onClick={() => {
                 setIsImageLoaded(false);
@@ -445,10 +497,10 @@ export default function Monitoring({ currentUser }) {
   return (
     <div className="h-[calc(100vh-120px)] min-h-0">
       {/* Grid Layout - Full Height */}
-      <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+      <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
         {/* ── Left Column (Video Player) - Span 8 ── */}
         <div className="flex h-full min-h-0 flex-col lg:col-span-8">
-          <Card className="flex flex-1 flex-col p-4 lg:p-5" animate={false}>
+          <Card className="flex flex-1 flex-col p-3 lg:p-4" animate={false}>
             {/* Header & Tabs - Compact */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div>

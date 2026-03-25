@@ -138,6 +138,26 @@ const FALLBACK_INCIDENTS = [
   },
 ];
 
+const formatWITA = (dateString) => {
+  if (!dateString || dateString === "—") return "—";
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return new Intl.DateTimeFormat("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: "Asia/Makassar",
+      timeZoneName: "short",
+    }).format(d);
+  } catch (e) {
+    return dateString;
+  }
+};
+
 export default function History() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("All");
@@ -184,13 +204,26 @@ export default function History() {
   // Map API fields to UI fields (handle both local and API naming)
   const filteredIncidents = rawEvents.map((e) => ({
     id: e.id,
-    waktu: e.waktu || e.timestamp || e.time || "—",
-    lokasi: e.lokasi || e.location || e.camera_name || "—",
+    waktu: formatWITA(e.waktu || e.timestamp || e.time),
+    lokasi:
+      e.lokasi ||
+      e.cameras?.location ||
+      e.cameras?.name ||
+      e.location ||
+      e.camera_name ||
+      "—",
     namaStaff: e.namaStaff || e.staff_name || e.name || "—",
-    jenisPeranggaran: e.jenisPeranggaran || e.event_type || e.type || "—",
-    status: e.status || "Pelanggaran",
+    jenisPeranggaran:
+      e.jenisPeranggaran || e.violation_type || e.event_type || e.type || "—",
+    status:
+      e.status === "violation"
+        ? "Pelanggaran"
+        : e.status === "valid" || e.status === "compliant"
+          ? "Valid"
+          : e.status || "Pelanggaran",
     foto: e.foto || e.photo_url || e.photo_path || "",
-    deskripsiAI: e.deskripsiAI || e.description || e.detail || "",
+    deskripsiAI:
+      e.deskripsiAI || e.ai_description || e.description || e.detail || "",
   }));
 
   // Pagination from API or client-side

@@ -39,7 +39,8 @@ export function useSocket() {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("connect_error", onConnectError);
-      disconnectSocket();
+      // We do NOT call disconnectSocket() here because it's a singleton connection.
+      // Disconnecting it would kill the connection for every other component currently using it.
     };
   }, []);
 

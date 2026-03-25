@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { getApiBaseUrl } from "../utils/url";
 
 /**
  * Fetch all cameras with extended config.
@@ -112,8 +113,6 @@ export async function stopCamera(id) {
  * @param {string} id
  */
 export function getCameraSnapshotUrl(id) {
-  const apiBase =
-    import.meta.env.VITE_API_URL?.replace("/api", "") ||
-    "https://api.foodiserver.my.id";
+  const apiBase = getApiBaseUrl();
   return `${apiBase}/api/cameras/${id}/snapshot`;
 }

@@ -37,28 +37,27 @@
   - **Completed**: Mar 13
   - **Notes**: 25 tables deployed to Supabase
 
-- [ ] ⬜ Configure Supabase Storage buckets
+- [x] ✅ Configure Local Storage + CF Tunnel
   - **Owner**: Backend Developer
-  - **Due**: Mar 17
-  - **Buckets**: event-evidence, identity-photos, config-exports
+  - **Completed**: Mar 17
+  - **Notes**: Replaced Supabase Storage with local serving via api.foodiserver.my.id
 
 - [x] ✅ Enable pgvector extension
   - **Owner**: Database Engineer
   - **Completed**: Mar 13
   - **Notes**: Extension enabled, ready for face encodings
 
-- [ ] ⬜ Test RLS policies with sample data
+- [x] ✅ Test RLS policies with sample data
   - **Owner**: Database Engineer
-  - **Due**: Mar 18
-  - **Test**: Tenant isolation, role-based access
+  - **Completed**: Mar 24
+  - **Notes**: Fixed circular dependencies in `profiles` and `events`
 
 ### Backend
 
-- [ ] ⬜ Audit V2_Project current structure
+- [x] ✅ Audit V2_Project current structure
   - **Owner**: Tech Lead
-  - **Due**: Mar 13
-  - **Output**: Document current file structure
-  - **Files**: `database/01_erd_v2_compatibility_analysis.md`
+  - **Completed**: Mar 14
+  - **Notes**: Monolith refactored into modular subdirectories (engine/, server/, etc)
 
 - [ ] ⬜ Create OpenAPI spec for Defense Plan APIs
   - **Owner**: Backend Developer
@@ -70,10 +69,10 @@
   - **Due**: Mar 20
   - **Features**: Connection pooling, retry logic, error handling
 
-- [ ] ⬜ Create dual-write strategy (local + cloud)
+- [x] ✅ Create dual-write strategy (local + cloud)
   - **Owner**: Backend Developer
-  - **Due**: Mar 22
-  - **Description**: Write to local file AND Supabase simultaneously
+  - **Completed**: Mar 17
+  - **Description**: Photo saved locally, URL stored in Supabase DB
 
 ### Frontend
 
@@ -117,6 +116,16 @@
   - **Owner**: Frontend Developer
   - **Completed**: Mar 13
   - **Features**: Supabase config grouped by category
+
+- [x] ✅ Profile Cache & Auth Resilience
+  - **Owner**: Frontend Developer
+  - **Completed**: Mar 25
+  - **Notes**: `localStorage` profile cache for instant load, handled token refresh race
+
+- [x] ✅ Reports & Evidence UI Fixes
+  - **Owner**: Frontend Developer
+  - **Completed**: Mar 25
+  - **Notes**: Fixed undefined `photoUrls` and added `has_photo` filter
 
 ---
 
@@ -340,17 +349,14 @@
 
 ## 📊 Task Summary by Team
 
-| Team         | P0            | P1     | P2     | P3    | Total  |
-| ------------ | ------------- | ------ | ------ | ----- | ------ |
-| **Database** | 1 (of 5)      | 3      | 3      | 0     | 11     |
-| **Backend**  | 4             | 6      | 4      | 3     | 17     |
-| **Frontend** | 0 (of 8) ✅   | 7      | 4      | 3     | 22     |
-| **DevOps**   | 0 (of 1) ✅   | 2      | 0      | 0     | 3      |
-| **QA**       | 0             | 0      | 2      | 0     | 2      |
-| **TOTAL**    | **5/18 done** | **18** | **13** | **6** | **55** |
-| **DevOps**   | 1             | 2      | 0      | 0     | 3      |
-| **QA**       | 0             | 0      | 2      | 0     | 2      |
-| **TOTAL**    | **18**        | **18** | **13** | **6** | **55** |
+| Team         | P0             | P1     | P2     | P3    | Total  |
+| ------------ | -------------- | ------ | ------ | ----- | ------ |
+| **Database** | 5 (of 5) ✅    | 3      | 3      | 0     | 11     |
+| **Backend**  | 2 (of 4)       | 6      | 4      | 3     | 17     |
+| **Frontend** | 10 (of 10) ✅  | 7      | 4      | 3     | 24     |
+| **DevOps**   | 1 (of 1) ✅    | 2      | 0      | 0     | 3      |
+| **QA**       | 0              | 0      | 2      | 0     | 2      |
+| **TOTAL**    | **18/20 done** | **18** | **13** | **6** | **57** |
 
 ---
 
@@ -446,15 +452,16 @@ Untuk menambah task baru, gunakan format:
 
 ## 🔄 Update History
 
-| Date       | Changes                                                | Updated By   |
-| ---------- | ------------------------------------------------------ | ------------ |
-| 2026-03-14 | Profile Page & Invite generator added                  | Frontend Dev |
-| 2026-03-14 | Header UI sizing optimization                          | Frontend Dev |
-| 2026-03-14 | Signup flow multi-scenario invite integration          | Frontend Dev |
-| 2026-03-14 | Auth UI Redesign & Session verification fix            | Frontend Dev |
+| 2026-03-25 | Profile Cache & Reports UI Fixes | Frontend Dev |
+| 2026-03-24 | Verified RLS & Migrated new project | Database Eng |
+| 2026-03-17 | Migrated Photo Storage to Local + CF Tunnel | Backend Lead |
+| 2026-03-14 | Profile Page & Invite generator added | Frontend Dev |
+| 2026-03-14 | Header UI sizing optimization | Frontend Dev |
+| 2026-03-14 | Signup flow multi-scenario invite integration | Frontend Dev |
+| 2026-03-14 | Auth UI Redesign & Session verification fix | Frontend Dev |
 | 2026-03-13 | Frontend Supabase integration complete, all P0 FE done | Frontend Dev |
-| 2026-03-12 | Initial creation                                       | Tech Lead    |
-| 2026-03-12 | Added sprint planning                                  | Tech Lead    |
+| 2026-03-12 | Initial creation | Tech Lead |
+| 2026-03-12 | Added sprint planning | Tech Lead |
 
 ---
 

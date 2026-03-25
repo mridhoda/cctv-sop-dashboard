@@ -11,14 +11,32 @@ import { isFaceRecognitionEnabled } from "../hooks/useFaceRecognition";
 
 const AuthContext = createContext(null);
 
-const withTimeout = (promise, ms, errorMessage) => {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(
-      () => reject(new Error(errorMessage || "Request timed out")),
-      ms,
-    ),
-  );
-  return Promise.race([promise, timeout]);
+// Profile cache helpers — store profile in localStorage so UI loads instantly
+// on refresh without waiting for a Supabase round-trip.
+const PROFILE_CACHE_KEY = "vg_profile";
+
+const saveProfileCache = (data) => {
+  try {
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    /* ignore storage errors */
+  }
+};
+
+const getProfileCache = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY));
+  } catch {
+    return null;
+  }
+};
+
+const clearProfileCache = () => {
+  try {
+    localStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
 };
 
 const ROLE_PERMISSIONS = {
@@ -51,108 +69,104 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load profile from Supabase profiles table
+  // Load profile from DB, save to cache, fall back to cache on error.
+  // No artificial timeout — Supabase client manages its own request queue.
   const loadProfile = useCallback(async (authUser) => {
-    if (!authUser) {
+    if (!authUser?.id) {
       setProfile(null);
+      clearProfileCache();
       return null;
     }
     try {
-      const data = await withTimeout(
-        fetchProfile(authUser.id),
-        8000,
-        "Profile fetch timeout",
-      );
+      const data = await fetchProfile(authUser.id);
       setProfile(data);
+      saveProfileCache(data); // ← persist for instant load on next visit
       return data;
     } catch (err) {
-      console.warn("[Auth] Profile fetch failed:", err.message);
-      // Retry once before giving up
-      try {
-        console.info("[Auth] Retrying profile fetch...");
-        const data = await withTimeout(
-          fetchProfile(authUser.id),
-          10000,
-          "Profile fetch retry timeout",
-        );
-        setProfile(data);
-        return data;
-      } catch (retryErr) {
-        console.error(
-          "[Auth] Profile fetch failed after retry:",
-          retryErr.message,
-        );
-        // Set error state — do NOT fake a role
-        const errorProfile = {
-          id: authUser.id,
-          email: authUser.email,
-          name: authUser.user_metadata?.name || authUser.email?.split("@")[0],
-          role: null, // Explicitly null = unknown, NOT "viewer"
-          username: authUser.email,
-          _profileError: retryErr.message, // Capture exact error for debugging
-        };
-        setProfile(errorProfile);
-        return errorProfile;
+      // PGRST116: .single() got 0 rows — safe to ignore, happens on logout race
+      if (err?.code === "PGRST116" || err?.message?.includes("PGRST116")) {
+        setProfile(null);
+        clearProfileCache();
+        return null;
       }
+      // Network/other error — use cached profile if available
+      const cached = getProfileCache();
+      if (cached?.id === authUser.id) {
+        console.warn("[Auth] Profile fetch failed, using cache:", err.message);
+        setProfile(cached);
+        return cached;
+      }
+      console.warn("[Auth] Profile fetch failed (no cache):", err.message);
+      return null;
     }
   }, []);
 
   // Initialize: get session + listen for auth changes
   useEffect(() => {
-    const skipAutoLogin = sessionStorage.getItem("skipAutoLogin");
+    let mounted = true;
 
-    if (skipAutoLogin === "true") {
-      setLoading(false);
-      return;
-    }
+    const init = async () => {
+      // Step 1: Show cached profile immediately — UI appears without any wait
+      const cached = getProfileCache();
+      if (cached && mounted) {
+        setProfile(cached);
+        setLoading(false); // ← user sees dashboard instantly
+      }
 
-    // Get initial session with timeout and error handling
-    const checkSession = async () => {
+      // Step 2: Validate session in background
       try {
         const {
           data: { session },
           error,
-        } = await withTimeout(
-          supabase.auth.getSession(),
-          8000,
-          "Session fetch timeout",
-        );
-        if (error) throw error;
-        if (session?.user) {
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (error || !session?.user) {
+          // No valid session — clear everything
+          setUser(null);
+          setProfile(null);
+          clearProfileCache();
+        } else {
           setUser(session.user);
-          await loadProfile(session.user);
+          // Only fetch from DB if cache is empty or belongs to a different user
+          if (!cached || cached.id !== session.user.id) {
+            await loadProfile(session.user);
+          }
         }
       } catch (err) {
-        console.warn("[Auth] Session check failed:", err.message);
-        // Clear any stale session data
-        setUser(null);
-        setProfile(null);
+        console.warn("[Auth] Session init error:", err.message);
       } finally {
-        // Always set loading to false, even on error
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
-    checkSession();
+    init();
 
-    // Listen for auth state changes (login, logout, token refresh)
+    // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        const authUser = session?.user ?? null;
-        setUser(authUser);
-        if (authUser) {
-          await loadProfile(authUser);
-        } else {
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error("[Auth] onAuthStateChange error:", err);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      if (event === "SIGNED_OUT" || !session?.user) {
+        setUser(null);
+        setProfile(null);
+        clearProfileCache(); // ← wipe cache on logout
+        return;
+      }
+
+      setUser(session.user);
+      // TOKEN_REFRESHED fires every hour — skip DB fetch, use existing state
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        await loadProfile(session.user);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const refreshProfile = useCallback(async () => {
@@ -186,6 +200,7 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem("skipAutoLogin");
     setUser(null);
     setProfile(null);
+    clearProfileCache(); // ← also clear cache on logout
   }, []);
 
   /**
