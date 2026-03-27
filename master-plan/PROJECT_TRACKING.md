@@ -21,20 +21,24 @@
 **Periode**: Week 1-2 (Database Setup & V2 Migration)  
 **Goal**: Database schema implemented, V2 compatibility layer ready
 
-| Task                             | Owner    | Status      | Due Date | Notes                              |
-| -------------------------------- | -------- | ----------- | -------- | ---------------------------------- |
-| Setup Supabase project           | DevOps   | ✅ Complete | Mar 15   | Credentials received               |
-| Run DDL scripts                  | Database | ✅ Complete | Mar 16   | 25 tables deployed                 |
-| Configure Storage buckets        | Backend  | ✅ Complete | Mar 17   | Migrated to Local + CF Tunnel      |
-| Enable pgvector extension        | Database | ✅ Complete | Mar 17   | Ready for use                      |
-| Test RLS policies                | Database | ✅ Complete | Mar 24   | Multi-tenant isolation tested      |
-| Migrate to new Supabase project  | Database | ✅ Complete | Mar 24   | New project `ejbkbjrpbfxtvzwkmogi` |
-| RLS + Auth Triggers Setup        | Database | ✅ Complete | Mar 24   | handle_new_user, 23 tables, RPCs   |
-| identity-photos Storage Bucket   | Backend  | ✅ Complete | Mar 24   | Face photos only (event = local)   |
-| Dual-write implementation        | Backend  | ✅ Complete | Mar 17   | Local files + Supabase DB links    |
-| **Frontend → Supabase direct**   | Frontend | ✅ Complete | Mar 24   | .env updated to new project ✅     |
-| **V2_Project Structured Folder** | Backend  | ✅ Complete | Mar 14   | engine/, server/, configs/, docs/  |
-| **Backend Developer Docs**       | Backend  | ✅ Complete | Mar 14   | docs/PROJECT_STRUCTURE.md          |
+| Task                             | Owner     | Status      | Due Date | Notes                                                   |
+| -------------------------------- | --------- | ----------- | -------- | ------------------------------------------------------- |
+| Setup Supabase project           | DevOps    | ✅ Complete | Mar 15   | Credentials received                                    |
+| Run DDL scripts                  | Database  | ✅ Complete | Mar 16   | 25 tables deployed                                      |
+| Configure Storage buckets        | Backend   | ✅ Complete | Mar 17   | Migrated to Local + CF Tunnel                           |
+| Enable pgvector extension        | Database  | ✅ Complete | Mar 17   | Ready for use                                           |
+| Test RLS policies                | Database  | ✅ Complete | Mar 24   | Multi-tenant isolation tested                           |
+| Migrate to new Supabase project  | Database  | ✅ Complete | Mar 24   | New project `ejbkbjrpbfxtvzwkmogi`                      |
+| RLS + Auth Triggers Setup        | Database  | ✅ Complete | Mar 24   | handle_new_user, 23 tables, RPCs                        |
+| identity-photos Storage Bucket   | Backend   | ✅ Complete | Mar 24   | Face photos only (event = local)                        |
+| Dual-write implementation        | Backend   | ✅ Complete | Mar 17   | Local files + Supabase DB links                         |
+| **Frontend → Supabase direct**   | Frontend  | ✅ Complete | Mar 24   | .env updated to new project ✅                          |
+| **V2_Project Structured Folder** | Backend   | ✅ Complete | Mar 14   | engine/, server/, configs/, docs/                       |
+| **Backend Developer Docs**       | Backend   | ✅ Complete | Mar 14   | docs/PROJECT_STRUCTURE.md                               |
+| **Supabase RLS Optimization**    | Database  | ✅ Complete | Mar 27   | Refactored helper functions, dedup policies, 27 indexes |
+| **Auth Stale Session Fix**       | Frontend  | ✅ Complete | Mar 27   | Force signOut on expired refresh token                  |
+| **WebSocket Transport Fix**      | Frontend  | ✅ Complete | Mar 27   | polling-first transport for Cloudflare                  |
+| **Streaming Architecture Plan**  | Tech Lead | ✅ Complete | Mar 27   | `STREAMING_ARCHITECTURE.md` — WebRTC + Go2RTC plan      |
 
 ---
 
@@ -74,6 +78,8 @@
 
 ### 3. Frontend Layer
 
+- **Supabase Realtime** (events, cameras, camera_heartbeats)
+
 | Component                 | Status      | Progress | Notes                                        |
 | ------------------------- | ----------- | -------- | -------------------------------------------- |
 | Login page UI             | ✅ Complete | 100%     | Supabase Auth, email-based login             |
@@ -91,6 +97,8 @@
 | **Reports & Evidence UI** | ✅ Complete | 100%     | Photo path & undefined bug fixed ✅          |
 | **SignUp page**           | ✅ Complete | 100%     | Supabase signUp + email verification         |
 | **Forgot Password page**  | ✅ Complete | 100%     | Supabase resetPasswordForEmail               |
+| **Stale Session Fix**     | ✅ Complete | 100%     | Force signOut + clear cache on expired token |
+| **WebSocket Transport**   | ✅ Complete | 100%     | Polling-first transport for Cloudflare proxy |
 
 **Overall Frontend**: 100% ✅
 
@@ -284,6 +292,10 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
+| 2026-03-27 | **Supabase RLS & Index Optimization** | Database | Refactored `get_user_role`, `get_user_tenant_id`, dedup policies, 27 new indexes — eliminated `queue_timeout` connection pool exhaustion |
+| 2026-03-27 | **Auth Stale Session Fix** | Frontend | `AuthContext.jsx` — force `signOut()` + clear cache when refresh token expired/invalid — eliminates silent broken session |
+| 2026-03-27 | **WebSocket Transport Fix** | Frontend | `socket.js` — changed transport order to `["polling", "websocket"]` — fixes Cloudflare proxy timeout on initial WS connection |
+| 2026-03-27 | **Streaming Architecture Plan** | Tech Lead | Created `STREAMING_ARCHITECTURE.md` — Go2RTC + WebRTC + Cloudflare TURN roadmap for production-grade streaming |
 | 2026-03-25 | **Profile Cache & Auth Resilience** | Frontend | `localStorage` profile cache, instant loading |
 | 2026-03-25 | **Reports Page UI Fixes** | Frontend | `photoUrls` bug, `has_photo` filter, timeout |
 | 2026-03-24 | **New Supabase Project Setup (RLS+Auth)** | Database | 23 tables RLS, triggers, RPCs, identity-photos bucket |
@@ -326,7 +338,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-25 21:40 WITA  
+**Last Updated**: 2026-03-27 11:21 WITA  
 **Next Review**: 2026-03-31 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 

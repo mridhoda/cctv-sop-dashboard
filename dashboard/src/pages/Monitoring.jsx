@@ -21,6 +21,7 @@ import {
   Minimize2,
 } from "lucide-react";
 import { useSocket, useSocketEvent } from "../hooks/useSocket";
+import { useMonitoringFallback } from "../hooks/useMonitoringFallback";
 import { useCameras } from "../hooks/useCameras";
 import { useStreamQuality } from "../hooks/useStreamQuality";
 import { cn } from "../utils/cn";
@@ -438,6 +439,28 @@ export default function Monitoring({ currentUser }) {
       if (prev.some((e) => e.id === newEvent.id)) return prev;
       return [newEvent, ...prev].slice(0, 50);
     });
+  });
+
+  // ── Supabase Hybrid Fallback ─────────────────────────────────────────
+  // Activates automatically when Socket.IO is disconnected.
+  // Polls Supabase every 5s for stats, engine status, and recent events.
+  // Zero overhead when socket is healthy (isConnected === true).
+  useMonitoringFallback({
+    isSocketConnected: isConnected,
+    cameraId: selectedCam?.id,
+    cameraLocation: selectedCam?.area,
+    onStats: setStats,
+    onEngineStatus: setEngineStatus,
+    onEvents: (fallbackEvents) => {
+      setEvents((prev) => {
+        const existingIds = new Set(prev.map((e) => e.id));
+        const merged = [
+          ...prev,
+          ...fallbackEvents.filter((e) => !existingIds.has(e.id)),
+        ];
+        return merged.slice(0, 50);
+      });
+    },
   });
 
   // Engine control
