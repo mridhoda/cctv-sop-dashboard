@@ -13,6 +13,7 @@ import {
   User,
   Loader2,
   Camera,
+  ChevronDown,
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
 import { exportEventsCSV, getPhotoSignedUrl } from "../services/events";
@@ -22,144 +23,53 @@ import { useToast } from "../components/ui/Toast";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { cn } from "../utils/cn";
+import RefreshButton from "../components/ui/RefreshButton";
 import { useFaceRecognition } from "../hooks/useFaceRecognition";
 
-// Mock data kept as fallback when API is unreachable
-const FALLBACK_INCIDENTS = [
-  {
-    id: 1,
-    waktu: "2024-01-15 14:32:15",
-    lokasi: "Koridor Utama",
-    namaStaff: "Budi Santoso",
-    jenisPeranggaran: "Tanpa Helm Keselamatan",
-    status: "Pelanggaran",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+1",
-    deskripsiAI:
-      "Deteksi individu tanpa helm keselamatan di area koridor utama. Tingkat kepercayaan: 92%. Rekomendasi: Tindakan disiplin",
-  },
-  {
-    id: 2,
-    waktu: "2024-01-15 13:45:42",
-    lokasi: "Ruang Server",
-    namaStaff: "Siti Nurhaliza",
-    jenisPeranggaran: "Akses Tanpa Otorisasi",
-    status: "Valid",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+2",
-    deskripsiAI:
-      "Akses ke ruang server terdeteksi. Verifikasi: Staff terotorisasi dengan badge ID yang valid",
-  },
-  {
-    id: 3,
-    waktu: "2024-01-15 12:20:18",
-    lokasi: "Area Gudang",
-    namaStaff: "Ahmad Wijaya",
-    jenisPeranggaran: "Material Berbahaya Terbuka",
-    status: "Pelanggaran",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+3",
-    deskripsiAI:
-      "Material berbahaya terdeteksi tidak dalam kondisi aman. Tingkat kepercayaan: 87%. Rekomendasi: Pengecekan keamanan segera",
-  },
-  {
-    id: 4,
-    waktu: "2024-01-15 11:15:33",
-    lokasi: "Pintu Masuk",
-    namaStaff: "Dewi Kusuma",
-    jenisPeranggaran: "Lalu Lintas Tanpa Protokol",
-    status: "Valid",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+4",
-    deskripsiAI:
-      "Lalu lintas normal melalui pintu masuk. Semua protokol keselamatan terpenuhi",
-  },
-  {
-    id: 5,
-    waktu: "2024-01-15 10:00:55",
-    lokasi: "Area Parkir",
-    namaStaff: "Edi Gunawan",
-    jenisPeranggaran: "Parkir di Area Larangan",
-    status: "Pelanggaran",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+5",
-    deskripsiAI:
-      "Kendaraan terdeteksi di area parkir terlarang. Tingkat kepercayaan: 95%. Rekomendasi: Tindakan administratif",
-  },
-  {
-    id: 6,
-    waktu: "2024-01-14 16:42:10",
-    lokasi: "Ruang Rapat",
-    namaStaff: "Fatimah Zahra",
-    jenisPeranggaran: "Penggunaan Perangkat Terlarang",
-    status: "Valid",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+6",
-    deskripsiAI:
-      "Perangkat terdeteksi adalah peralatan rapat resmi yang tersertifikasi. Tidak ada pelanggaran",
-  },
-  {
-    id: 7,
-    waktu: "2024-01-14 15:28:47",
-    lokasi: "Koridor Utama",
-    namaStaff: "Gita Permata",
-    jenisPeranggaran: "Area Terlarang",
-    status: "Pelanggaran",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+7",
-    deskripsiAI:
-      "Akses ke area terlarang terdeteksi tanpa otorisasi. Tingkat kepercayaan: 89%. Rekomendasi: Investigasi lebih lanjut",
-  },
-  {
-    id: 8,
-    waktu: "2024-01-14 14:05:22",
-    lokasi: "Pintu Masuk",
-    namaStaff: "Hendra Suryanto",
-    jenisPeranggaran: "Protokol Keselamatan Terpenuhi",
-    status: "Valid",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+8",
-    deskripsiAI:
-      "Akses normal melalui pintu masuk dengan protokol keselamatan lengkap",
-  },
-  {
-    id: 9,
-    waktu: "2024-01-14 12:33:09",
-    lokasi: "Area Gudang",
-    namaStaff: "Indah Kusuma",
-    jenisPeranggaran: "Keamanan Penyimpanan Tidak Memadai",
-    status: "Pelanggaran",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+9",
-    deskripsiAI:
-      "Penyimpanan material tidak sesuai standar keamanan. Tingkat kepercayaan: 91%. Rekomendasi: Reorganisasi penyimpanan",
-  },
-  {
-    id: 10,
-    wakti: "2024-01-14 11:10:45",
-    lokasi: "Ruang Server",
-    namaStaff: "Joko Susilo",
-    jenisPeranggaran: "Verifikasi Akses Berhasil",
-    status: "Valid",
-    foto: "https://via.placeholder.com/400x300?text=Bukti+Pelanggaran+10",
-    deskripsiAI:
-      "Akses ke ruang server terverifikasi dengan credential yang valid",
-  },
+const PERIOD_OPTIONS = [
+  { value: "hari_ini", label: "Hari Ini" },
+  { value: "minggu_ini", label: "Minggu Ini" },
+  { value: "bulan_ini", label: "Bulan Ini" },
+  { value: "tahun_ini", label: "Tahun Ini" },
+  { value: "semua", label: "Semua Waktu" },
 ];
 
-const formatWITA = (dateString) => {
-  if (!dateString || dateString === "—") return "—";
-  try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return new Intl.DateTimeFormat("id-ID", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: "Asia/Makassar",
-      timeZoneName: "short",
-    }).format(d);
-  } catch (e) {
-    return dateString;
+const getPeriodDates = (period) => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${y}-${m}-${d}`;
+
+  let date_from = "";
+  let date_to = `${todayStr}T23:59:59`;
+
+  if (period === "hari_ini") {
+    date_from = `${todayStr}T00:00:00`;
+  } else if (period === "minggu_ini") {
+    const monday = new Date(now);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+    monday.setDate(diff);
+    const my = monday.getFullYear();
+    const mm = String(monday.getMonth() + 1).padStart(2, "0");
+    const md = String(monday.getDate()).padStart(2, "0");
+    date_from = `${my}-${mm}-${md}T00:00:00`;
+  } else if (period === "bulan_ini") {
+    date_from = `${y}-${m}-01T00:00:00`;
+  } else if (period === "tahun_ini") {
+    date_from = `${y}-01-01T00:00:00`;
+  } else {
+    return {};
   }
+
+  return { date_from, date_to };
 };
 
 export default function History() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [period, setPeriod] = useState("hari_ini");
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIncident, setSelectedIncident] = useState(null);
@@ -168,7 +78,7 @@ export default function History() {
   const { addToast } = useToast();
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
 
-  const itemsPerPage = 5;
+  const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
   // Load photo URL when selected incident changes
   useEffect(() => {
@@ -183,6 +93,8 @@ export default function History() {
     loadPhotoUrl();
   }, [selectedIncident]);
 
+  const { date_from, date_to } = getPeriodDates(period);
+
   // Fetch events from API
   const {
     data: eventsData,
@@ -192,19 +104,48 @@ export default function History() {
   } = useEvents({
     page: currentPage,
     limit: itemsPerPage,
-    status: statusFilter !== "All" ? statusFilter : undefined,
+    status:
+      statusFilter === "Pelanggaran"
+        ? "violation"
+        : statusFilter === "Valid"
+          ? "valid"
+          : undefined,
     search: searchQuery || undefined,
+    date_from,
+    date_to,
   });
 
   // Normalize API response — support various shapes
   const rawEvents = Array.isArray(eventsData)
     ? eventsData
-    : eventsData?.data || eventsData?.events || FALLBACK_INCIDENTS;
+    : eventsData?.data || eventsData?.events || [];
 
   // Map API fields to UI fields (handle both local and API naming)
   const filteredIncidents = rawEvents.map((e) => ({
     id: e.id,
-    waktu: formatWITA(e.waktu || e.timestamp || e.time),
+    waktu: (() => {
+      // Re-implemented inline formating since formatWITA was removed accidentally,
+      // but standard formats work locally anyway via direct Date API to mirror what we want.
+      if (!e.waktu && !e.timestamp && !e.time) return "—";
+      const dt = e.waktu || e.timestamp || e.time;
+      if (dt === "—") return dt;
+      try {
+        const d = new Date(dt);
+        if (isNaN(d.getTime())) return dt;
+        return new Intl.DateTimeFormat("id-ID", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZone: "Asia/Makassar",
+          timeZoneName: "short",
+        }).format(d);
+      } catch (err) {
+        return dt;
+      }
+    })(),
     lokasi:
       e.lokasi ||
       e.cameras?.location ||
@@ -235,6 +176,8 @@ export default function History() {
   const paginatedIncidents = eventsData?.totalPages
     ? filteredIncidents
     : filteredIncidents.slice(0, itemsPerPage);
+
+  const totalEntries = eventsData?.total ?? filteredIncidents.length;
 
   const handleRowClick = (incident) => {
     setSelectedIncident(incident);
@@ -270,21 +213,22 @@ export default function History() {
             </p>
           </div>
         </div>
+        <RefreshButton onRefresh={refetch} />
       </div>
 
       {/* Filter Bar */}
       <Card className="p-4" animate={false}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-slate-500" />
+          <div className="md:col-span-3 flex items-center gap-2">
+            <Filter className="w-5 h-5 text-slate-500 flex-shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
             >
               <option value="All">Semua Status</option>
               <option value="Pelanggaran">Pelanggaran</option>
@@ -292,12 +236,31 @@ export default function History() {
             </select>
           </div>
 
+          {/* Period Filter */}
+          <div className="md:col-span-3 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-slate-500 flex-shrink-0" />
+            <select
+              value={period}
+              onChange={(e) => {
+                setPeriod(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Search Input */}
-          <div className="flex items-center gap-2 md:col-span-2">
-            <Search className="w-5 h-5 text-slate-500" />
+          <div className="md:col-span-4 flex items-center gap-2">
+            <Search className="w-5 h-5 text-slate-500 flex-shrink-0" />
             <input
               type="text"
-              placeholder="Cari berdasarkan staff, lokasi, atau jenis pelanggaran..."
+              placeholder="Cari staff, lokasi..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -317,6 +280,27 @@ export default function History() {
               </button>
             )}
           </div>
+
+          {/* Per-Page Dropdown */}
+          <div className="md:col-span-2 flex items-center gap-2 justify-end">
+            <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
+              View
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Results Summary */}
@@ -326,9 +310,7 @@ export default function History() {
             {paginatedIncidents.length}
           </span>{" "}
           dari{" "}
-          <span className="font-semibold text-slate-900">
-            {filteredIncidents.length}
-          </span>{" "}
+          <span className="font-semibold text-slate-900">{totalEntries}</span>{" "}
           insiden
         </div>
       </Card>
@@ -466,32 +448,6 @@ export default function History() {
           </button>
         </div>
       </Card>
-
-      {/* Export Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={async () => {
-            try {
-              const blob = await exportEventsCSV({
-                status: statusFilter !== "All" ? statusFilter : undefined,
-              });
-              const url = window.URL.createObjectURL(new Blob([blob]));
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `events-export-${new Date().toISOString().slice(0, 10)}.csv`;
-              a.click();
-              window.URL.revokeObjectURL(url);
-              addToast({ type: "success", message: "Export CSV berhasil!" });
-            } catch {
-              addToast({ type: "error", message: "Gagal export CSV" });
-            }
-          }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
-      </div>
 
       {/* Detail Modal */}
       {showModal && selectedIncident && (

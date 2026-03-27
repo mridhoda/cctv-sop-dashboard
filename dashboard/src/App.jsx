@@ -25,9 +25,10 @@ import {
   Monitor,
   Camera,
   Loader2,
-  Gauge,
   Siren,
   Shield,
+  Menu,
+  Gauge,
 } from "lucide-react";
 import Card from "./components/ui/Card";
 import MetricCard from "./components/ui/MetricCard";
@@ -45,6 +46,7 @@ import {
 } from "./hooks/useDashboard";
 import { useFaceRecognition } from "./hooks/useFaceRecognition";
 import { useRealtimeEvents } from "./hooks/useRealtimeEvents";
+import RefreshButton from "./components/ui/RefreshButton";
 
 import LandingPage from "./LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -86,9 +88,16 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
     error: summaryError,
     refetch: refetchSummary,
   } = useDashboardSummary();
-  const { data: incidentsData, isLoading: incidentsLoading } =
-    useRecentIncidents(5);
-  const { data: camerasData, isLoading: camerasLoading } = useCameraStatus();
+  const {
+    data: incidentsData,
+    isLoading: incidentsLoading,
+    refetch: refetchIncidents,
+  } = useRecentIncidents(5);
+  const {
+    data: camerasData,
+    isLoading: camerasLoading,
+    refetch: refetchCameras,
+  } = useCameraStatus();
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
   const [selectedIncident, setSelectedIncident] = useState(null);
 
@@ -109,18 +118,26 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
   const complianceRate =
     summary.compliance_rate ?? summary.complianceRate ?? "—";
 
+  const complianceVal =
+    typeof complianceRate === "number"
+      ? parseFloat(complianceRate.toFixed(2))
+      : 85;
+  const nonComplianceVal = parseFloat((100 - complianceVal).toFixed(2));
+
   const pieData = [
-    {
-      name: "Patuh",
-      value: typeof complianceRate === "number" ? complianceRate : 85,
-      color: "#10B981",
-    },
-    {
-      name: "Tidak Patuh",
-      value: typeof complianceRate === "number" ? 100 - complianceRate : 15,
-      color: "#EF4444",
-    },
+    { name: "Patuh", value: complianceVal, color: "#10B981" },
+    { name: "Tidak Patuh", value: nonComplianceVal, color: "#EF4444" },
   ];
+
+  // Real spark series + labels from API (fall back to empty if loading/missing)
+  const sparkTotal = summary.spark_total ?? [];
+  const sparkViolations = summary.spark_violations ?? [];
+  const sparkCompliance = summary.spark_compliance ?? [];
+  const sparkLabels = summary.spark_labels ?? [];
+
+  const deltaTotal = summary.delta_total ?? "...";
+  const deltaViolations = summary.delta_violations ?? "...";
+  const deltaCompliance = summary.delta_compliance ?? "...";
 
   // Only block on the primary summary query — incidents & cameras render progressively
   if (summaryLoading) {
@@ -142,8 +159,13 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
             Pantauan real-time kepatuhan seragam SOP AI.
           </p>
         </div>
-        <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 shadow-sm flex items-center gap-2">
-          <Clock size={16} /> Update terakhir: Baru saja
+        <div className="flex items-center gap-3">
+          <RefreshButton
+            onRefresh={[refetchSummary, refetchIncidents, refetchCameras]}
+          />
+          <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 shadow-sm flex items-center gap-2">
+            <Clock size={16} /> Update terakhir: Baru saja
+          </div>
         </div>
       </div>
 
@@ -156,10 +178,11 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
               typeof totalDetections === "number"
                 ? totalDetections.toLocaleString()
                 : totalDetections,
-            delta: "+12% vs kemarin",
+            delta: deltaTotal,
             tone: "slate",
             icon: Gauge,
-            spark: [30, 42, 35, 48, 56, 59, 70],
+            spark: sparkTotal,
+            sparkLabels,
           }}
         />
         <MetricCard
@@ -169,10 +192,11 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
               typeof totalIncidents === "number"
                 ? totalIncidents.toLocaleString()
                 : totalIncidents,
-            delta: "Perlu perhatian",
+            delta: deltaViolations,
             tone: "rose",
             icon: Siren,
-            spark: [22, 18, 24, 17, 19, 15, 14],
+            spark: sparkViolations,
+            sparkLabels,
           }}
         />
         <MetricCard
@@ -180,12 +204,13 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
             title: "Tingkat Kepatuhan",
             value:
               typeof complianceRate === "number"
-                ? `${complianceRate.toFixed(1)}%`
+                ? `${complianceRate.toFixed(2)}%`
                 : `${complianceRate}%`,
-            delta: "Sesuai target",
+            delta: deltaCompliance,
             tone: "emerald",
             icon: Shield,
-            spark: [72, 78, 80, 83, 86, 85, 85],
+            spark: sparkCompliance,
+            sparkLabels,
           }}
         />
       </div>
@@ -467,12 +492,18 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
 function DashboardShell() {
   const { user, logout, hasPermission, getAllowedTabs } = useAuth();
   const { addToast } = useToast();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Subscribe to Supabase Realtime events (background)
   useRealtimeEvents();
 
   const allowedTabs = getAllowedTabs();
   const [activeTab, setActiveTab] = useState(allowedTabs[0] || "home");
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
 
   // Guard: redirect to first allowed tab if current is not allowed
   useEffect(() => {
@@ -522,263 +553,309 @@ function DashboardShell() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex relative overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col hidden md:flex">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-800">
-          <ShieldCheck className="text-emerald-400" />
-          <span className="font-bold text-lg text-white">VisionGuard AI</span>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        <div className="p-6 flex items-center justify-between gap-3 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="text-emerald-400 shrink-0" />
+            <span className="font-bold text-lg text-white truncate">
+              VisionGuard AI
+            </span>
+          </div>
+          <button
+            className="md:hidden text-slate-400 hover:text-white transition p-1"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-2 pb-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-2 pb-1 shrink-0">
             Menu Utama
           </p>
           {hasPermission("home") && (
             <button
-              onClick={() => setActiveTab("home")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "home" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("home")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "home" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <LayoutDashboard size={20} /> Dashboard
+              <LayoutDashboard size={20} className="shrink-0" />{" "}
+              <span className="truncate">Dashboard</span>
             </button>
           )}
           {hasPermission("monitoring") && (
             <button
-              onClick={() => setActiveTab("monitoring")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "monitoring" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("monitoring")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "monitoring" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <Monitor size={20} /> Live Monitoring
+              <Monitor size={20} className="shrink-0" />{" "}
+              <span className="truncate">Live Monitoring</span>
             </button>
           )}
           {hasPermission("history") && (
             <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "history" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("history")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "history" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <AlertTriangle size={20} /> Riwayat Insiden
+              <AlertTriangle size={20} className="shrink-0" />{" "}
+              <span className="truncate">Riwayat Insiden</span>
             </button>
           )}
 
           {(hasPermission("identities") ||
             hasPermission("reports") ||
             hasPermission("cameras")) && (
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1 shrink-0">
               Manajemen
             </p>
           )}
           {hasPermission("identities") && (
             <button
-              onClick={() => setActiveTab("identities")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "identities" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("identities")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "identities" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <Users size={20} /> Identitas Staff
+              <Users size={20} className="shrink-0" />{" "}
+              <span className="truncate">Identitas Staff</span>
             </button>
           )}
           {hasPermission("reports") && (
             <button
-              onClick={() => setActiveTab("reports")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "reports" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("reports")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "reports" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <FileText size={20} /> Laporan & Bukti
+              <FileText size={20} className="shrink-0" />{" "}
+              <span className="truncate">Laporan & Bukti</span>
             </button>
           )}
           {hasPermission("cameras") && (
             <button
-              onClick={() => setActiveTab("cameras")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "cameras" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              onClick={() => handleTabChange("cameras")}
+              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "cameras" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
             >
-              <Camera size={20} /> Manajemen Kamera
+              <Camera size={20} className="shrink-0" />{" "}
+              <span className="truncate">Manajemen Kamera</span>
             </button>
           )}
 
           {hasPermission("settings") && (
             <>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1">
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1 shrink-0">
                 Sistem
               </p>
               <button
-                onClick={() => setActiveTab("settings")}
-                className={`flex items-center gap-3 w-full p-3 rounded-lg transition ${activeTab === "settings" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+                onClick={() => handleTabChange("settings")}
+                className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "settings" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
               >
-                <SettingsIcon size={20} /> Pengaturan
+                <SettingsIcon size={20} className="shrink-0" />{" "}
+                <span className="truncate">Pengaturan</span>
               </button>
             </>
           )}
         </nav>
 
         {/* Sidebar footer - simplified (moved main user UI to header) */}
-        <div className="border-t border-slate-800 px-4 py-3">
+        <div className="border-t border-slate-800 px-4 py-3 shrink-0">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition text-sm"
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition text-sm text-left"
           >
-            <LogOut size={16} /> Keluar
+            <LogOut size={16} className="shrink-0" />{" "}
+            <span className="truncate">Keluar</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100 min-w-0">
         {/* ── Top Header Bar ── */}
-        <header className="h-12 shrink-0 flex items-center justify-end gap-1.5 px-3 lg:px-4 bg-white border-b border-slate-200">
-          {/* Notification Bell */}
-          <div className="relative" data-dropdown>
+        <header className="h-12 shrink-0 flex items-center justify-between px-3 lg:px-4 bg-white border-b border-slate-200">
+          {/* Mobile Hamburger & Logo */}
+          <div className="flex items-center gap-2 md:hidden">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowNotifDropdown((v) => !v);
-                setShowUserDropdown(false);
-              }}
-              className="relative flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1.5 -ml-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition"
             >
-              <Bell size={16} />
-              {/* Unread badge */}
-              <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
-                2
-              </span>
+              <Menu size={20} />
             </button>
-
-            {/* Notification dropdown */}
-            {showNotifDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-800">
-                      Notifikasi
-                    </h4>
-                    <span className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 text-[10px] font-bold text-rose-600">
-                      2
-                    </span>
-                  </div>
-                  <button className="text-[11px] text-slate-500 hover:text-slate-700 font-medium">
-                    ✓ Tandai semua dibaca
-                  </button>
-                </div>
-                <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
-                  {/* Sample notifications */}
-                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800">
-                        Pelanggaran Helm
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        Budi Santoso – Produksi A
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        2 menit lalu
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800">
-                        Kamera Offline
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        CCTV 03 – Packing tidak merespons
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        15 menit lalu
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-emerald-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800">
-                        SOP Terverifikasi
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        7 staff compliant shift pagi
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        1 jam lalu
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="text-emerald-500 w-5 h-5 shrink-0" />
+              <span className="font-bold text-sm text-slate-800 truncate">
+                VisionGuard
+              </span>
+            </div>
           </div>
 
-          {/* Divider */}
-          <div className="h-5 w-px bg-slate-200" />
-
-          {/* User Profile */}
-          <div className="relative" data-dropdown>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowUserDropdown((v) => !v);
-                setShowNotifDropdown(false);
-              }}
-              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors"
-            >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-600">
-                <User size={14} />
-              </div>
-              <div className="hidden sm:flex flex-col items-start gap-0.5">
-                <span className="text-xs font-semibold text-slate-800 leading-none">
-                  {user?.name || user?.username || "User"}
+          <div className="flex items-center justify-end gap-1.5 ml-auto">
+            {/* Notification Bell */}
+            <div className="relative" data-dropdown>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNotifDropdown((v) => !v);
+                  setShowUserDropdown(false);
+                }}
+                className="relative flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+              >
+                <Bell size={16} />
+                {/* Unread badge */}
+                <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
+                  2
                 </span>
-                <span
-                  className={`text-[9px] leading-none ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
-                >
-                  {displayRole}
-                </span>
-              </div>
-              <ChevronDown
-                size={12}
-                className="text-slate-400 hidden sm:block ml-0.5"
-              />
-            </button>
+              </button>
 
-            {/* User dropdown */}
-            {showUserDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-800 truncate">
+              {/* Notification dropdown */}
+              {showNotifDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-800">
+                        Notifikasi
+                      </h4>
+                      <span className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 text-[10px] font-bold text-rose-600">
+                        2
+                      </span>
+                    </div>
+                    <button className="text-[11px] text-slate-500 hover:text-slate-700 font-medium">
+                      ✓ Tandai semua dibaca
+                    </button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                    {/* Sample notifications */}
+                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">
+                          Pelanggaran Helm
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          Budi Santoso – Produksi A
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          2 menit lalu
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">
+                          Kamera Offline
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          CCTV 03 – Packing tidak merespons
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          15 menit lalu
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
+                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-emerald-500" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">
+                          SOP Terverifikasi
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          7 staff compliant shift pagi
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          1 jam lalu
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="h-5 w-px bg-slate-200" />
+
+            {/* User Profile */}
+            <div className="relative" data-dropdown>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowUserDropdown((v) => !v);
+                  setShowNotifDropdown(false);
+                }}
+                className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                  <User size={14} />
+                </div>
+                <div className="hidden sm:flex flex-col items-start gap-0.5">
+                  <span className="text-xs font-semibold text-slate-800 leading-none">
                     {user?.name || user?.username || "User"}
-                  </p>
-                  <p
-                    className={`text-[11px] ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
+                  </span>
+                  <span
+                    className={`text-[9px] leading-none ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
                   >
                     {displayRole}
-                  </p>
+                  </span>
                 </div>
-                <button
-                  onClick={() => {
-                    setActiveTab("profile");
-                    setShowUserDropdown(false);
-                  }}
-                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  <User size={14} /> Profil
-                </button>
-                {hasPermission("settings") && (
+                <ChevronDown
+                  size={12}
+                  className="text-slate-400 hidden sm:block ml-0.5"
+                />
+              </button>
+
+              {/* User dropdown */}
+              {showUserDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {user?.name || user?.username || "User"}
+                    </p>
+                    <p
+                      className={`text-[11px] ${hasRoleError ? "text-rose-500 font-bold" : "text-slate-500"}`}
+                    >
+                      {displayRole}
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
-                      setActiveTab("settings");
+                      setActiveTab("profile");
                       setShowUserDropdown(false);
                     }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
                   >
-                    <SettingsIcon size={14} /> Pengaturan
+                    <User size={14} /> Profil
                   </button>
-                )}
-                <button
-                  onClick={() => {
-                    setShowUserDropdown(false);
-                    handleLogout();
-                  }}
-                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
-                >
-                  <LogOut size={14} /> Keluar
-                </button>
-              </div>
-            )}
+                  {hasPermission("settings") && (
+                    <button
+                      onClick={() => {
+                        setActiveTab("settings");
+                        setShowUserDropdown(false);
+                      }}
+                      className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <SettingsIcon size={14} /> Pengaturan
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
+                  >
+                    <LogOut size={14} /> Keluar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

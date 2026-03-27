@@ -10,8 +10,8 @@ export function useEvents(params = {}) {
     queryKey: ["events", params],
     queryFn: () => fetchEvents(params),
     keepPreviousData: true,
-    retry: 2,
+    retry: 1,
     retryDelay: 1000,
-    staleTime: 20_000, // don't refetch more often than 20s
+    staleTime: 20_000,
   });
 }

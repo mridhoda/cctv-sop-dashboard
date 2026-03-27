@@ -1,10 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchConfig, updateConfig, updateConfigSetting } from "../services/config";
+import {
+  fetchConfig,
+  updateConfig,
+  updateConfigSetting,
+} from "../services/config";
 
 export function useConfig() {
   return useQuery({
     queryKey: ["config"],
     queryFn: fetchConfig,
+    retry: 0,
+    staleTime: 30_000,
   });
 }
 

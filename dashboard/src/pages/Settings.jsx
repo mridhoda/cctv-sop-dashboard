@@ -192,11 +192,21 @@ export default function Settings() {
     addToast({ type: "info", message: "Pengaturan dikembalikan ke default." });
   };
 
-  if (isLoading) return <LoadingSpinner message="Memuat konfigurasi..." />;
-  if (error) return <ErrorMessage error={error} onRetry={refetch} />;
-
   return (
     <div className="space-y-6">
+      {/* Backend offline warning */}
+      {(isLoading || error) && (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+          <div className="flex items-start gap-3 text-sm text-amber-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <p>
+              {isLoading
+                ? "Menghubungkan ke backend..."
+                : "Backend tidak dapat dijangkau. Menampilkan konfigurasi lokal (default)."}
+            </p>
+          </div>
+        </div>
+      )}
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>

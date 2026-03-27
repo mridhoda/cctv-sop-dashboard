@@ -12,6 +12,8 @@ export function useCameras() {
   return useQuery({
     queryKey: ["cameras"],
     queryFn: fetchCameras,
+    retry: 0,
+    staleTime: 30_000,
   });
 }
 

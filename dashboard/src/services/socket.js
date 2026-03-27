@@ -39,7 +39,7 @@ export function getSocket() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
     });
 
     // Debug listeners

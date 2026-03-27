@@ -8,42 +8,78 @@ import {
   AlertTriangle,
   CheckCircle,
   Calendar,
+  Clock,
   FileText,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { useEvents } from "../hooks/useEvents";
+import { useReportStats } from "../hooks/useReportStats";
 import { exportEventsCSV } from "../services/events";
 import { getPhotoUrl } from "../lib/storage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { useToast } from "../components/ui/Toast";
+import RefreshButton from "../components/ui/RefreshButton";
 
-// Fallback data for when API is unreachable
-const FALLBACK_REPORTS = [
-  {
-    id: "RPT001",
-    filename: "RPT-2024-03-15-001.jpg",
-    timestamp: "2024-03-15 09:30:45",
-    location: "Area Produksi A",
-    type: "pelanggaran",
-    jenis: "Operator tanpa helm",
-    confidenceScore: 0.92,
-  },
-  {
-    id: "RPT002",
-    filename: "RPT-2024-03-15-002.jpg",
-    timestamp: "2024-03-15 10:15:20",
-    location: "Area Parkir",
-    type: "valid",
-    jenis: "Verifikasi SOP Compliance",
-    confidenceScore: 0.88,
-  },
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const PERIOD_OPTIONS = [
+  { value: "hari_ini", label: "Hari Ini" },
+  { value: "minggu_ini", label: "Minggu Ini" },
+  { value: "bulan_ini", label: "Bulan Ini" },
+  { value: "tahun_ini", label: "Tahun Ini" },
 ];
+
+const getPeriodDates = (period) => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${y}-${m}-${d}`;
+
+  let date_from = "";
+  let date_to = `${todayStr}T23:59:59`;
+
+  if (period === "hari_ini") {
+    date_from = `${todayStr}T00:00:00`;
+  } else if (period === "minggu_ini") {
+    const monday = new Date(now);
+    const day = monday.getDay();
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
+    monday.setDate(diff);
+    const my = monday.getFullYear();
+    const mm = String(monday.getMonth() + 1).padStart(2, "0");
+    const md = String(monday.getDate()).padStart(2, "0");
+    date_from = `${my}-${mm}-${md}T00:00:00`;
+  } else if (period === "bulan_ini") {
+    date_from = `${y}-${m}-01T00:00:00`;
+  } else if (period === "tahun_ini") {
+    date_from = `${y}-01-01T00:00:00`;
+  } else {
+    return {}; // All time fallback if ever needed
+  }
+
+  return { date_from, date_to };
+};
 
 export default function Reports() {
   const [filterType, setFilterType] = useState("ALL");
+  const [period, setPeriod] = useState("hari_ini");
   const [selectedReport, setSelectedReport] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { addToast } = useToast();
+
+  const { date_from, date_to } = getPeriodDates(period);
+
+  // Fetch report stats for the top cards
+  const {
+    data: statsMap,
+    isLoading: isLoadingStats,
+    refetch: refetchStats,
+  } = useReportStats(date_from, date_to);
 
   // Fetch reports (events with photos)
   const {
@@ -51,17 +87,52 @@ export default function Reports() {
     isLoading,
     error,
     refetch,
-  } = useEvents({ has_photo: true, limit: 50 });
+  } = useEvents({
+    has_photo: true,
+    page: currentPage,
+    limit: itemsPerPage,
+    status:
+      filterType === "PELANGGARAN"
+        ? "violation"
+        : filterType === "VALID"
+          ? "valid"
+          : undefined,
+    date_from,
+    date_to,
+  });
 
-  const rawReports = Array.isArray(apiData)
-    ? apiData
-    : apiData?.data || FALLBACK_REPORTS;
+  const rawReports = Array.isArray(apiData) ? apiData : apiData?.data || [];
   const allReports = rawReports.map((r) => ({
     id: r.id,
     photo_path: r.photo_path || r.photo_url || null,
     filename: r.filename || r.photo_path?.split("/").pop() || `RPT-${r.id}.jpg`,
-    timestamp: r.timestamp || r.time || r.created_at || "—",
-    location: r.location || r.camera_name || "—",
+    timestamp: (() => {
+      const dt = r.timestamp || r.time || r.created_at;
+      if (!dt) return "—";
+      try {
+        const d = new Date(dt);
+        if (isNaN(d.getTime())) return dt;
+        return new Intl.DateTimeFormat("id-ID", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZone: "Asia/Makassar",
+          timeZoneName: "short",
+        }).format(d);
+      } catch (err) {
+        return dt;
+      }
+    })(),
+    location:
+      r.lokasi ||
+      r.cameras?.location ||
+      r.location ||
+      r.cameras?.name ||
+      r.camera_name ||
+      "Area Produksi",
     type:
       r.type ||
       (r.status === "Valid" || r.status === "valid" ? "valid" : "pelanggaran"),
@@ -81,13 +152,38 @@ export default function Reports() {
     return true;
   });
 
-  const totalLaporan = allReports.length;
-  const pelanggaran = allReports.filter((r) => r.type === "pelanggaran").length;
-  const sopValid = allReports.filter((r) => r.type === "valid").length;
+  // Pagination — support API-driven (totalPages in response) or client-side slice
+  const apiTotalPages = apiData?.totalPages || apiData?.total_pages;
+  const totalPages =
+    apiTotalPages || Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginatedReports = apiTotalPages
+    ? filtered
+    : filtered.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+      );
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
+  };
+
+  const totalLaporan = statsMap?.total || 0;
+  const pelanggaran = statsMap?.violations || 0;
+  const sopValid = statsMap?.valid || 0;
 
   const handleExportCSV = async () => {
     try {
-      const blob = await exportEventsCSV({ has_photo: true });
+      const blob = await exportEventsCSV({
+        has_photo: true,
+        date_from,
+        date_to,
+        status:
+          filterType === "PELANGGARAN"
+            ? "violation"
+            : filterType === "VALID"
+              ? "valid"
+              : undefined,
+      });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const a = document.createElement("a");
       a.href = url;
@@ -100,7 +196,6 @@ export default function Reports() {
     }
   };
 
-  if (isLoading) return <LoadingSpinner message="Memuat laporan..." />;
   if (error) return <ErrorMessage error={error} onRetry={refetch} />;
 
   return (
@@ -117,13 +212,16 @@ export default function Reports() {
                 Riwayat deteksi pelanggaran dan verifikasi kepatuhan SOP
               </p>
             </div>
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition"
-            >
-              <Download size={18} />
-              Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <RefreshButton onRefresh={[refetch, refetchStats]} />
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition"
+              >
+                <Download size={18} />
+                Export CSV
+              </button>
+            </div>
           </div>
 
           {/* Stats Bar */}
@@ -149,44 +247,87 @@ export default function Reports() {
               </p>
             </div>
             <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-              <div className="flex items-center gap-2">
-                <Calendar size={18} className="text-blue-600" />
-                <div>
-                  <p className="text-blue-700 text-sm font-medium">Periode</p>
-                  <p className="text-sm font-bold text-blue-600 mt-1">
-                    Hari Ini
-                  </p>
+              <div className="flex items-start justify-between min-h-[44px]">
+                <div className="flex items-center gap-2">
+                  <Calendar size={18} className="text-blue-600" />
+                  <div>
+                    <p className="text-blue-700 text-sm font-medium">Periode</p>
+                    <div className="relative mt-1">
+                      <select
+                        value={period}
+                        onChange={(e) => {
+                          setPeriod(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="appearance-none bg-transparent text-sm font-bold text-blue-600 pr-6 border-none focus:ring-0 cursor-pointer outline-none"
+                      >
+                        {PERIOD_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={14}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 text-blue-600 pointer-events-none"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-2">
-            {[
-              { label: "SEMUA", value: "ALL" },
-              { label: "PELANGGARAN", value: "PELANGGARAN" },
-              { label: "SOP VALID", value: "VALID" },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setFilterType(tab.value)}
-                className={`px-6 py-2 rounded-lg font-medium text-sm transition ${
-                  filterType === tab.value
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
+          {/* Filter Tabs + Per-Page Control */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex gap-2">
+              {[
+                { label: "SEMUA", value: "ALL" },
+                { label: "PELANGGARAN", value: "PELANGGARAN" },
+                { label: "SOP VALID", value: "VALID" },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => {
+                    setFilterType(tab.value);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-6 py-2 rounded-lg font-medium text-sm transition ${
+                    filterType === tab.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Per-Page Dropdown */}
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <span className="whitespace-nowrap font-medium">View</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
-                {tab.label}
-              </button>
-            ))}
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Photo Gallery Grid */}
       <div className="py-6">
-        {filtered.length === 0 ? (
+        {paginatedReports.length === 0 ? (
           <div className="text-center py-12">
             <Image size={48} className="mx-auto text-slate-300 mb-4" />
             <p className="text-slate-500 font-medium">
@@ -195,7 +336,7 @@ export default function Reports() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((report) => (
+            {paginatedReports.map((report) => (
               <button
                 key={report.id}
                 onClick={() => setSelectedReport(report)}
@@ -273,6 +414,39 @@ export default function Reports() {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-6">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={16} />
+              Sebelumnya
+            </button>
+
+            <div className="text-sm text-slate-600">
+              Halaman{" "}
+              <span className="font-semibold text-slate-900">
+                {currentPage}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-slate-900">{totalPages}</span>{" "}
+              ({filtered.length} total laporan)
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Selanjutnya
+              <ChevronRight size={16} />
+            </button>
           </div>
         )}
       </div>

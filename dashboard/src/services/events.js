@@ -208,3 +208,57 @@ export function getPhotoPublicUrl(photoPath) {
 
   return data?.publicUrl || null;
 }
+
+/**
+ * Fetch total stats for reports (events with photos) within a specific date range.
+ * @param {string} [date_from]
+ * @param {string} [date_to]
+ */
+export async function fetchReportsSummary(date_from, date_to) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+
+  let queryAll = supabase
+    .from("events")
+    .select("*", { count: "exact", head: true })
+    .not("photo_path", "is", null);
+
+  let queryViolations = supabase
+    .from("events")
+    .select("*", { count: "exact", head: true })
+    .not("photo_path", "is", null)
+    .eq("status", "violation");
+
+  let queryValid = supabase
+    .from("events")
+    .select("*", { count: "exact", head: true })
+    .not("photo_path", "is", null)
+    .in("status", ["valid", "compliant"]);
+
+  if (date_from) {
+    queryAll = queryAll.gte("timestamp", date_from);
+    queryViolations = queryViolations.gte("timestamp", date_from);
+    queryValid = queryValid.gte("timestamp", date_from);
+  }
+  if (date_to) {
+    queryAll = queryAll.lte("timestamp", date_to);
+    queryViolations = queryViolations.lte("timestamp", date_to);
+    queryValid = queryValid.lte("timestamp", date_to);
+  }
+
+  try {
+    const [allRes, violationRes, validRes] = await Promise.all([
+      queryAll.abortSignal(controller.signal),
+      queryViolations.abortSignal(controller.signal),
+      queryValid.abortSignal(controller.signal),
+    ]);
+
+    return {
+      total: allRes.count || 0,
+      violations: violationRes.count || 0,
+      valid: validRes.count || 0,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}

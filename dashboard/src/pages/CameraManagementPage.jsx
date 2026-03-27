@@ -328,7 +328,6 @@ export default function CameraManagementPage() {
   };
 
   // ── Render ──
-  if (isLoading) return <LoadingSpinner message="Memuat daftar kamera..." />;
   if (error) return <ErrorMessage error={error} onRetry={refetch} />;
 
   const isSubmitting = editingCamera

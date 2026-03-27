@@ -124,6 +124,13 @@ export function AuthProvider({ children }) {
 
         if (error || !session?.user) {
           // No valid session — clear everything
+          // If caused by an expired/invalid refresh token, sign out to clean server state
+          if (
+            error?.message?.includes("Refresh Token") ||
+            error?.status === 400
+          ) {
+            await supabase.auth.signOut().catch(() => {});
+          }
           setUser(null);
           setProfile(null);
           clearProfileCache();
@@ -149,10 +156,19 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      if (event === "SIGNED_OUT" || !session?.user) {
+      // Treat any missing session as a logout — covers expired refresh tokens
+      // that don't always emit SIGNED_OUT (e.g. revoked on another device)
+      if (!session?.user) {
         setUser(null);
         setProfile(null);
-        clearProfileCache(); // ← wipe cache on logout
+        clearProfileCache();
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setProfile(null);
+        clearProfileCache();
         return;
       }
 
