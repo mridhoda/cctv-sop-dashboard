@@ -242,7 +242,7 @@ export default function Reports() {
           </div>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
               <p className="text-slate-600 text-sm font-medium">
                 Total Laporan

@@ -185,7 +185,7 @@ function StreamViewer({
   return (
     <div
       ref={containerRef}
-      className="relative group flex flex-1 min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-inner"
+      className="relative group flex flex-1 min-h-[320px] lg:min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-inner"
     >
       {/* Hidden image loader — use zero-size instead of display:none
            so the browser actually loads the MJPEG stream and fires events */}
@@ -490,11 +490,11 @@ export default function Monitoring({ currentUser }) {
   }, [isConnected, engineStatus]);
 
   return (
-    <div className="h-[calc(100vh-120px)] min-h-0">
+    <div className="min-h-0 lg:h-[calc(100vh-120px)]">
       {/* Grid Layout - Full Height */}
       <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
         {/* ── Left Column (Video Player) - Span 8 ── */}
-        <div className="flex h-full min-h-0 flex-col lg:col-span-8">
+        <div className="flex min-h-0 flex-col lg:h-full lg:col-span-8">
           <Card className="flex flex-1 flex-col p-3 lg:p-4" animate={false}>
             {/* Header & Tabs - Compact */}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3 shrink-0">

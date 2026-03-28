@@ -108,23 +108,26 @@ export function AuthProvider({ children }) {
     const init = async () => {
       // Step 1: Show cached profile immediately — UI appears without any wait
       const cached = getProfileCache();
-      if (cached && mounted) {
+      if (cached) {
         setProfile(cached);
         setLoading(false); // ← user sees dashboard instantly
       }
 
-      // Step 2: Validate session in background
+      // Step 2: Validate session in background (with 5s timeout guard)
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("getSession timeout")), 5000),
+          ),
+        ]);
 
         if (!mounted) return;
 
+        const { data: { session } = {}, error } = sessionResult;
+
         if (error || !session?.user) {
           // No valid session — clear everything
-          // If caused by an expired/invalid refresh token, sign out to clean server state
           if (
             error?.message?.includes("Refresh Token") ||
             error?.status === 400
@@ -143,8 +146,16 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         console.warn("[Auth] Session init error:", err.message);
+        // On timeout or network error, clear user state so login page shows
+        if (err.message === "getSession timeout") {
+          setUser(null);
+          setProfile(null);
+          clearProfileCache();
+        }
       } finally {
-        if (mounted) setLoading(false);
+        // Always resolve loading — React 18 ignores state updates on unmounted
+        // components safely, and StrictMode remounts need this to complete.
+        setLoading(false);
       }
     };
 
@@ -215,15 +226,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     // 1. Clear local state immediately
     sessionStorage.removeItem("skipAutoLogin");
-    setUser(null);
-    setProfile(null);
     clearProfileCache();
-    setLoading(false); // ensure login page renders immediately
 
     // 2. Sign out globally with a timeout to prevent GoTrue queue deadlock.
-    //    Using scope:"local" previously left the internal token state alive,
-    //    causing signInWithPassword to hang on the next login attempt.
-    //    We use scope:"global" with a 3s hard timeout as a safe guard.
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: "global" }),
@@ -232,8 +237,6 @@ export function AuthProvider({ children }) {
         ),
       ]);
     } catch (err) {
-      // Timeout or network error — fall back to local sign out to at least
-      // clear local token, then force a page reload to reset GoTrue's queue.
       console.warn("[Auth] Global signOut failed, doing local:", err.message);
       try {
         await supabase.auth.signOut({ scope: "local" });
@@ -241,6 +244,11 @@ export function AuthProvider({ children }) {
         /* ignore */
       }
     }
+
+    // 3. Hard reload to fully reset GoTrue's internal request queue.
+    //    Without this, signInWithPassword on the next login can hang
+    //    because the GoTrue client retains stale pending state.
+    window.location.reload();
   }, []);
 
   /**
