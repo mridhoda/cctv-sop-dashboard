@@ -13,6 +13,18 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
+/**
+ * Supabase partitions the events table by month (events_y2026m03, etc.).
+ * Realtime CDC fires from the PARTITION table, not the parent.
+ * Returns the correct partition name for today.
+ */
+function currentEventsPartition() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `events_y${y}m${m}`;
+}
+
 /** Map row camera_heartbeats → stats shape yang dipakai Monitoring.jsx */
 function mapHeartbeatToStats(row) {
   const totalValid = row.total_valid ?? 0;
@@ -117,7 +129,8 @@ export function useMonitoringRealtime({
       )
       .subscribe();
 
-    // ── 3. Detection events (INSERT baru) ─────────────────────────────
+    // ── 3. Detection events (INSERT baru ke partisi bulan ini) ────────
+    const eventsPartition = currentEventsPartition();
     const eventsChannel = supabase
       .channel(`monitoring-events-${cameraId}`)
       .on(
@@ -125,7 +138,7 @@ export function useMonitoringRealtime({
         {
           event: "INSERT",
           schema: "public",
-          table: "events",
+          table: eventsPartition, // e.g. events_y2026m03
           filter: `camera_id=eq.${cameraId}`,
         },
         (payload) => {
@@ -142,10 +155,4 @@ export function useMonitoringRealtime({
       supabase.removeChannel(eventsChannel);
     };
   }, [cameraId, cameraLocation, onStats, onEngineStatus, onEvent]);
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 }
