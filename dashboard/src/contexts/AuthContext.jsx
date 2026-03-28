@@ -192,37 +192,54 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(
     async ({ email, password }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
 
-      // Clear skip auto-login flag after successful login
-      sessionStorage.removeItem("skipAutoLogin");
-      setUser(data.user);
-      const prof = await loadProfile(data.user);
-      return prof;
+        // Clear skip auto-login flag after successful login
+        sessionStorage.removeItem("skipAutoLogin");
+        setUser(data.user);
+        const prof = await loadProfile(data.user);
+        return prof;
+      } finally {
+        setLoading(false);
+      }
     },
     [loadProfile],
   );
 
   const logout = useCallback(async () => {
-    // 1. Clear local state immediately so the UI responds right away,
-    //    even when the network is down or the WebSocket has timed out.
+    // 1. Clear local state immediately
     sessionStorage.removeItem("skipAutoLogin");
     setUser(null);
     setProfile(null);
     clearProfileCache();
+    setLoading(false); // ensure login page renders immediately
 
-    // 2. Sign out LOCALLY only.
-    //    This avoids sending a network request to the Auth server.
-    //    If a network request hangs, it blocks the Supabase GoTrue internal queue,
-    //    causing any subsequent log-in attempts (`signInWithPassword`) to hang indefinitely.
+    // 2. Sign out globally with a timeout to prevent GoTrue queue deadlock.
+    //    Using scope:"local" previously left the internal token state alive,
+    //    causing signInWithPassword to hang on the next login attempt.
+    //    We use scope:"global" with a 3s hard timeout as a safe guard.
     try {
-      await supabase.auth.signOut({ scope: "local" });
+      await Promise.race([
+        supabase.auth.signOut({ scope: "global" }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("signOut timeout")), 3000),
+        ),
+      ]);
     } catch (err) {
-      console.warn("[Auth] local signOut error:", err.message);
+      // Timeout or network error — fall back to local sign out to at least
+      // clear local token, then force a page reload to reset GoTrue's queue.
+      console.warn("[Auth] Global signOut failed, doing local:", err.message);
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        /* ignore */
+      }
     }
   }, []);
 
