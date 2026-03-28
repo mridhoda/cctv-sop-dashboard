@@ -300,6 +300,8 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
+| 2026-03-29 | **Bugfix: Infinite Load on Logout** | Frontend | `AuthContext.jsx` — Fixed Supabase GoTrue queue stall by changing logout scope to global with a 3s timeout guard, adding `setLoading(true)` to `login`. |
+| 2026-03-29 | **Bugfix: History Timezone Zero-Hour** | Frontend | `History.jsx`, `Reports.jsx` — Fixed local-to-UTC date conversion bug that hid events from 00:00 - 08:00 WITA. Now uses `toISOString()`. |
 | 2026-03-29 | **Supabase-First: Realtime Partition Fix** | Frontend | `useMonitoringRealtime.js` — Resolved issue where Realtime CDC only fires from partition tables (`events_y2026m03`) not the parent. |
 | 2026-03-29 | **Supabase-First: Heartbeat Conflict Fix** | Backend | `heartbeat.py` — Disabled legacy redundant inserts to prevent stats flickering (0 values) on dashboard. |
 | 2026-03-29 | **Supabase-First: Frontend Realtime** | Frontend | `useMonitoringRealtime.js` — 3 Supabase Realtime channels replacing `useSocketEvent` for stats, engine, and events. |
@@ -351,7 +353,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-29 00:30 WITA  
+**Last Updated**: 2026-03-29 01:00 WITA  
 **Next Review**: 2026-03-31 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 
