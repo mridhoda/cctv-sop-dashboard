@@ -452,6 +452,7 @@ Untuk menambah task baru, gunakan format:
 
 ## 🔄 Update History
 
+| 2026-03-29 | Supabase-First Realtime & WS Keepalive | Tech Lead |
 | 2026-03-25 | Profile Cache & Reports UI Fixes | Frontend Dev |
 | 2026-03-24 | Verified RLS & Migrated new project | Database Eng |
 | 2026-03-17 | Migrated Photo Storage to Local + CF Tunnel | Backend Lead |

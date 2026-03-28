@@ -36,34 +36,51 @@ const PERIOD_OPTIONS = [
 
 const getPeriodDates = (period) => {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${y}-${m}-${d}`;
-
-  let date_from = "";
-  let date_to = `${todayStr}T23:59:59`;
+  const startOfDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const endOfDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
 
   if (period === "hari_ini") {
-    date_from = `${todayStr}T00:00:00`;
+    return {
+      date_from: startOfDay.toISOString(),
+      date_to: endOfDay.toISOString(),
+    };
   } else if (period === "minggu_ini") {
+    const day = now.getDay();
     const monday = new Date(now);
-    const day = monday.getDay();
-    const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
-    monday.setDate(diff);
-    const my = monday.getFullYear();
-    const mm = String(monday.getMonth() + 1).padStart(2, "0");
-    const md = String(monday.getDate()).padStart(2, "0");
-    date_from = `${my}-${mm}-${md}T00:00:00`;
+    monday.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
+    monday.setHours(0, 0, 0, 0);
+    return { date_from: monday.toISOString(), date_to: endOfDay.toISOString() };
   } else if (period === "bulan_ini") {
-    date_from = `${y}-${m}-01T00:00:00`;
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    return {
+      date_from: firstDay.toISOString(),
+      date_to: endOfDay.toISOString(),
+    };
   } else if (period === "tahun_ini") {
-    date_from = `${y}-01-01T00:00:00`;
+    const firstDay = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    return {
+      date_from: firstDay.toISOString(),
+      date_to: endOfDay.toISOString(),
+    };
   } else {
     return {};
   }
-
-  return { date_from, date_to };
 };
 
 export default function History() {

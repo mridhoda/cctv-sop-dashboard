@@ -300,10 +300,11 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
-| 2026-03-29 | **WS Keepalive Ping** | Backend | `app.py` — `_broadcast_keepalive` emit `server_ping` tiap 30s + `pong` handler — mencegah Cloudflare idle timeout |
-| 2026-03-29 | **Supabase-First: DB Migration** | Database | Tambah `total_valid`, `total_pelanggaran`, `compliance_rate` ke `camera_heartbeats` + `REPLICA IDENTITY FULL` + Realtime aktif di `events` partitions |
-| 2026-03-29 | **Supabase-First: Backend Publisher** | Backend | `supabase/publisher.py` — dual-write stats ke `camera_heartbeats` + engine status ke `cameras.detection_state` (silent-fail) |
-| 2026-03-29 | **Supabase-First: Frontend Realtime** | Frontend | `useMonitoringRealtime.js` — 3 Supabase Realtime channels menggantikan `useSocketEvent` untuk engine_status, stats, detection_event |
+| 2026-03-29 | **Supabase-First: Realtime Partition Fix** | Frontend | `useMonitoringRealtime.js` — Resolved issue where Realtime CDC only fires from partition tables (`events_y2026m03`) not the parent. |
+| 2026-03-29 | **Supabase-First: Heartbeat Conflict Fix** | Backend | `heartbeat.py` — Disabled legacy redundant inserts to prevent stats flickering (0 values) on dashboard. |
+| 2026-03-29 | **Supabase-First: Frontend Realtime** | Frontend | `useMonitoringRealtime.js` — 3 Supabase Realtime channels replacing `useSocketEvent` for stats, engine, and events. |
+| 2026-03-29 | **Supabase-First: Backend Publisher** | Backend | `supabase/publisher.py` — Dual-write stats/status to DB. |
+| 2026-03-29 | **WS Keepalive Ping** | Backend | `app.py` — Added 30s ping/pong mechanism to keep Cloudflare connection alive. |
 | 2026-03-27 | **Supabase RLS & Index Optimization** | Database | Refactored `get_user_role`, `get_user_tenant_id`, dedup policies, 27 new indexes — eliminated `queue_timeout` connection pool exhaustion |
 | 2026-03-27 | **Auth Stale Session Fix** | Frontend | `AuthContext.jsx` — force `signOut()` + clear cache when refresh token expired/invalid — eliminates silent broken session |
 | 2026-03-27 | **WebSocket Transport Fix** | Frontend | `socket.js` — changed transport order to `["polling", "websocket"]` — fixes Cloudflare proxy timeout on initial WS connection |
@@ -350,7 +351,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-29 00:04 WITA  
+**Last Updated**: 2026-03-29 00:30 WITA  
 **Next Review**: 2026-03-31 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 
