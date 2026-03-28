@@ -21,7 +21,7 @@ import {
   Minimize2,
 } from "lucide-react";
 import { useSocket, useSocketEvent } from "../hooks/useSocket";
-import { useMonitoringFallback } from "../hooks/useMonitoringFallback";
+import { useMonitoringRealtime } from "../hooks/useMonitoringRealtime";
 import { useCameras } from "../hooks/useCameras";
 import { useStreamQuality } from "../hooks/useStreamQuality";
 import { cn } from "../utils/cn";
@@ -397,11 +397,28 @@ export default function Monitoring({ currentUser }) {
   const isViewer = currentUser?.role === "viewer";
   const { isConnected, emit } = useSocket();
 
-  // Socket event listeners
+  // ── Supabase Realtime subscriptions (primary data source) ───────────────
+  // Replaces useSocketEvent("engine_status"), useSocketEvent("stats_update"),
+  // and useSocketEvent("detection_event"). Socket.IO only used for emit().
+  useMonitoringRealtime({
+    cameraId: selectedCam?.id,
+    cameraLocation: selectedCam?.area,
+    onStats: setStats,
+    onEngineStatus: setEngineStatus,
+    onEvent: (newEvent) => {
+      setEvents((prev) => {
+        if (prev.some((e) => e.id === newEvent.id)) return prev;
+        return [newEvent, ...prev].slice(0, 50);
+      });
+    },
+  });
+
+  // ── Socket.IO kept only for initial state on connect ─────────────────
+  // Backend emits engine_status + stats_update on connect as snapshot.
+  // We still receive it here as a one-time initial load.
   useSocketEvent("engine_status", (data) => {
     if (data?.status) setEngineStatus(data.status);
   });
-
   useSocketEvent("stats_update", (data) => {
     if (!data) return;
     const totalValid = data.total_valid ?? data.valid ?? 0;
@@ -416,51 +433,6 @@ export default function Monitoring({ currentUser }) {
       activeTracks: data.active_tracks ?? 0,
     });
     if (data.engine_status) setEngineStatus(data.engine_status);
-  });
-
-  useSocketEvent("detection_event", (data) => {
-    if (!data) return;
-    const isViolation =
-      data.status === "violation" || data.status === "pelanggaran";
-    const newEvent = {
-      id: data.id ?? `${data.track_id}-${data.timestamp}`,
-      status: isViolation ? "Pelanggaran SOP" : "Valid SOP",
-      person: data.name || "Unknown",
-      type: data.type || data.status || "Detection",
-      location: data.location || selectedCam.area,
-      time: new Date(data.timestamp || Date.now()).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-    };
-    setEvents((prev) => {
-      // Skip duplicate events (backend may emit the same detection multiple times)
-      if (prev.some((e) => e.id === newEvent.id)) return prev;
-      return [newEvent, ...prev].slice(0, 50);
-    });
-  });
-
-  // ── Supabase Hybrid Fallback ─────────────────────────────────────────
-  // Activates automatically when Socket.IO is disconnected.
-  // Polls Supabase every 5s for stats, engine status, and recent events.
-  // Zero overhead when socket is healthy (isConnected === true).
-  useMonitoringFallback({
-    isSocketConnected: isConnected,
-    cameraId: selectedCam?.id,
-    cameraLocation: selectedCam?.area,
-    onStats: setStats,
-    onEngineStatus: setEngineStatus,
-    onEvents: (fallbackEvents) => {
-      setEvents((prev) => {
-        const existingIds = new Set(prev.map((e) => e.id));
-        const merged = [
-          ...prev,
-          ...fallbackEvents.filter((e) => !existingIds.has(e.id)),
-        ];
-        return merged.slice(0, 50);
-      });
-    },
   });
 
   // Engine control

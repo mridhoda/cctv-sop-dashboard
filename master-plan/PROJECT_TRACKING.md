@@ -21,24 +21,28 @@
 **Periode**: Week 1-2 (Database Setup & V2 Migration)  
 **Goal**: Database schema implemented, V2 compatibility layer ready
 
-| Task                             | Owner     | Status      | Due Date | Notes                                                   |
-| -------------------------------- | --------- | ----------- | -------- | ------------------------------------------------------- |
-| Setup Supabase project           | DevOps    | ✅ Complete | Mar 15   | Credentials received                                    |
-| Run DDL scripts                  | Database  | ✅ Complete | Mar 16   | 25 tables deployed                                      |
-| Configure Storage buckets        | Backend   | ✅ Complete | Mar 17   | Migrated to Local + CF Tunnel                           |
-| Enable pgvector extension        | Database  | ✅ Complete | Mar 17   | Ready for use                                           |
-| Test RLS policies                | Database  | ✅ Complete | Mar 24   | Multi-tenant isolation tested                           |
-| Migrate to new Supabase project  | Database  | ✅ Complete | Mar 24   | New project `ejbkbjrpbfxtvzwkmogi`                      |
-| RLS + Auth Triggers Setup        | Database  | ✅ Complete | Mar 24   | handle_new_user, 23 tables, RPCs                        |
-| identity-photos Storage Bucket   | Backend   | ✅ Complete | Mar 24   | Face photos only (event = local)                        |
-| Dual-write implementation        | Backend   | ✅ Complete | Mar 17   | Local files + Supabase DB links                         |
-| **Frontend → Supabase direct**   | Frontend  | ✅ Complete | Mar 24   | .env updated to new project ✅                          |
-| **V2_Project Structured Folder** | Backend   | ✅ Complete | Mar 14   | engine/, server/, configs/, docs/                       |
-| **Backend Developer Docs**       | Backend   | ✅ Complete | Mar 14   | docs/PROJECT_STRUCTURE.md                               |
-| **Supabase RLS Optimization**    | Database  | ✅ Complete | Mar 27   | Refactored helper functions, dedup policies, 27 indexes |
-| **Auth Stale Session Fix**       | Frontend  | ✅ Complete | Mar 27   | Force signOut on expired refresh token                  |
-| **WebSocket Transport Fix**      | Frontend  | ✅ Complete | Mar 27   | polling-first transport for Cloudflare                  |
-| **Streaming Architecture Plan**  | Tech Lead | ✅ Complete | Mar 27   | `STREAMING_ARCHITECTURE.md` — WebRTC + Go2RTC plan      |
+| Task                              | Owner     | Status      | Due Date | Notes                                                                         |
+| --------------------------------- | --------- | ----------- | -------- | ----------------------------------------------------------------------------- |
+| Setup Supabase project            | DevOps    | ✅ Complete | Mar 15   | Credentials received                                                          |
+| Run DDL scripts                   | Database  | ✅ Complete | Mar 16   | 25 tables deployed                                                            |
+| Configure Storage buckets         | Backend   | ✅ Complete | Mar 17   | Migrated to Local + CF Tunnel                                                 |
+| Enable pgvector extension         | Database  | ✅ Complete | Mar 17   | Ready for use                                                                 |
+| Test RLS policies                 | Database  | ✅ Complete | Mar 24   | Multi-tenant isolation tested                                                 |
+| Migrate to new Supabase project   | Database  | ✅ Complete | Mar 24   | New project `ejbkbjrpbfxtvzwkmogi`                                            |
+| RLS + Auth Triggers Setup         | Database  | ✅ Complete | Mar 24   | handle_new_user, 23 tables, RPCs                                              |
+| identity-photos Storage Bucket    | Backend   | ✅ Complete | Mar 24   | Face photos only (event = local)                                              |
+| Dual-write implementation         | Backend   | ✅ Complete | Mar 17   | Local files + Supabase DB links                                               |
+| **Frontend → Supabase direct**    | Frontend  | ✅ Complete | Mar 24   | .env updated to new project ✅                                                |
+| **V2_Project Structured Folder**  | Backend   | ✅ Complete | Mar 14   | engine/, server/, configs/, docs/                                             |
+| **Backend Developer Docs**        | Backend   | ✅ Complete | Mar 14   | docs/PROJECT_STRUCTURE.md                                                     |
+| **Supabase RLS Optimization**     | Database  | ✅ Complete | Mar 27   | Refactored helper functions, dedup policies, 27 indexes                       |
+| **Auth Stale Session Fix**        | Frontend  | ✅ Complete | Mar 27   | Force signOut on expired refresh token                                        |
+| **WebSocket Transport Fix**       | Frontend  | ✅ Complete | Mar 27   | polling-first transport for Cloudflare                                        |
+| **Streaming Architecture Plan**   | Tech Lead | ✅ Complete | Mar 27   | `STREAMING_ARCHITECTURE.md` — WebRTC + Go2RTC plan                            |
+| **WS Keepalive Ping**             | Backend   | ✅ Complete | Mar 27   | `_broadcast_keepalive` thread + pong handler — prevent CF idle timeout        |
+| **Supabase-First Migration (DB)** | Database  | ✅ Complete | Mar 29   | `total_valid`, `total_pelanggaran`, `compliance_rate` + REPLICA IDENTITY FULL |
+| **Supabase-First Migration (BE)** | Backend   | ✅ Complete | Mar 29   | `supabase/publisher.py` — dual-write stats + engine status                    |
+| **Supabase-First Migration (FE)** | Frontend  | ✅ Complete | Mar 29   | `useMonitoringRealtime.js` — 3 Realtime channels, WS hanya emit               |
 
 ---
 
@@ -63,16 +67,18 @@
 
 ### 2. Backend Layer
 
-| Component                   | Status      | Progress | Notes                             |
-| --------------------------- | ----------- | -------- | --------------------------------- |
-| V2_Project compatibility    | ✅ Complete | 100%     | Monolith refactored               |
-| Supabase client integration | ✅ Complete | 100%     | Client + sync modules             |
-| Auth middleware             | ✅ Complete | 100%     | JWT validation added              |
-| API endpoints (REST)        | ✅ Complete | 100%     | Extracted to Blueprints           |
-| WebSocket (Socket.IO)       | ✅ Complete | 100%     | Handlers modularized              |
-| Event storage to DB         | ✅ Complete | 100%     | Publisher implemented             |
-| **Structured Folder**       | ✅ Complete | 100%     | engine/, server/, configs/, docs/ |
-| **Developer Docs**          | ✅ Complete | 100%     | docs/PROJECT_STRUCTURE.md         |
+| Component                   | Status      | Progress | Notes                                                       |
+| --------------------------- | ----------- | -------- | ----------------------------------------------------------- |
+| V2_Project compatibility    | ✅ Complete | 100%     | Monolith refactored                                         |
+| Supabase client integration | ✅ Complete | 100%     | Client + sync modules                                       |
+| Auth middleware             | ✅ Complete | 100%     | JWT validation added                                        |
+| API endpoints (REST)        | ✅ Complete | 100%     | Extracted to Blueprints                                     |
+| WebSocket (Socket.IO)       | ✅ Complete | 100%     | Handlers modularized                                        |
+| Event storage to DB         | ✅ Complete | 100%     | Publisher implemented                                       |
+| **Structured Folder**       | ✅ Complete | 100%     | engine/, server/, configs/, docs/                           |
+| **Developer Docs**          | ✅ Complete | 100%     | docs/PROJECT_STRUCTURE.md                                   |
+| **WS Keepalive Ping**       | ✅ Complete | 100%     | `_broadcast_keepalive` 30s thread — prevent CF idle timeout |
+| **Supabase Dual-Write**     | ✅ Complete | 100%     | `supabase/publisher.py` — stats + detection_state ke DB     |
 
 **Overall Backend**: 100% ✅
 
@@ -80,25 +86,27 @@
 
 - **Supabase Realtime** (events, cameras, camera_heartbeats)
 
-| Component                 | Status      | Progress | Notes                                        |
-| ------------------------- | ----------- | -------- | -------------------------------------------- |
-| Login page UI             | ✅ Complete | 100%     | Supabase Auth, email-based login             |
-| Dashboard UI              | ✅ Complete | 100%     | React Query + Supabase direct                |
-| Live Monitoring UI        | ✅ Complete | 90%      | Socket.IO stream + Supabase camera list      |
-| Incident History UI       | ✅ Complete | 100%     | Supabase pagination + client CSV export      |
-| Identity Management UI    | ✅ Complete | 100%     | Supabase CRUD + Storage upload               |
-| Reports/Evidence UI       | ✅ Complete | 100%     | Supabase events + photo filter               |
-| Settings UI               | ✅ Complete | 100%     | Supabase config grouped by category          |
-| **API Integration**       | ✅ Complete | 100%     | **Supabase direct** (no backend needed)      |
-| **Camera Management UI**  | ✅ Complete | 100%     | CRUD, multi-layout grid                      |
-| **Frontend Architecture** | ✅ Complete | 100%     | Supabase → Service → Hook → Component        |
-| **Auth (Supabase Auth)**  | ✅ Complete | 100%     | **Profile cache implemented** (instant load) |
-| **Supabase Realtime**     | ✅ Complete | 100%     | Events + camera heartbeats subscriptions     |
-| **Reports & Evidence UI** | ✅ Complete | 100%     | Photo path & undefined bug fixed ✅          |
-| **SignUp page**           | ✅ Complete | 100%     | Supabase signUp + email verification         |
-| **Forgot Password page**  | ✅ Complete | 100%     | Supabase resetPasswordForEmail               |
-| **Stale Session Fix**     | ✅ Complete | 100%     | Force signOut + clear cache on expired token |
-| **WebSocket Transport**   | ✅ Complete | 100%     | Polling-first transport for Cloudflare proxy |
+| Component                     | Status      | Progress | Notes                                                               |
+| ----------------------------- | ----------- | -------- | ------------------------------------------------------------------- |
+| Login page UI                 | ✅ Complete | 100%     | Supabase Auth, email-based login                                    |
+| Dashboard UI                  | ✅ Complete | 100%     | React Query + Supabase direct                                       |
+| Live Monitoring UI            | ✅ Complete | 90%      | Socket.IO stream + Supabase camera list                             |
+| Incident History UI           | ✅ Complete | 100%     | Supabase pagination + client CSV export                             |
+| Identity Management UI        | ✅ Complete | 100%     | Supabase CRUD + Storage upload                                      |
+| Reports/Evidence UI           | ✅ Complete | 100%     | Supabase events + photo filter                                      |
+| Settings UI                   | ✅ Complete | 100%     | Supabase config grouped by category                                 |
+| **API Integration**           | ✅ Complete | 100%     | **Supabase direct** (no backend needed)                             |
+| **Camera Management UI**      | ✅ Complete | 100%     | CRUD, multi-layout grid                                             |
+| **Frontend Architecture**     | ✅ Complete | 100%     | Supabase → Service → Hook → Component                               |
+| **Auth (Supabase Auth)**      | ✅ Complete | 100%     | **Profile cache implemented** (instant load)                        |
+| **Supabase Realtime**         | ✅ Complete | 100%     | Events + camera heartbeats subscriptions                            |
+| **Reports & Evidence UI**     | ✅ Complete | 100%     | Photo path & undefined bug fixed ✅                                 |
+| **SignUp page**               | ✅ Complete | 100%     | Supabase signUp + email verification                                |
+| **Forgot Password page**      | ✅ Complete | 100%     | Supabase resetPasswordForEmail                                      |
+| **Stale Session Fix**         | ✅ Complete | 100%     | Force signOut + clear cache on expired token                        |
+| **WebSocket Transport**       | ✅ Complete | 100%     | Polling-first transport for Cloudflare proxy                        |
+| **Supabase-First Monitoring** | ✅ Complete | 100%     | `useMonitoringRealtime` — engine_status, stats, events via Realtime |
+| **WS hanya untuk emit**       | ✅ Complete | 100%     | Socket.IO dipertahankan hanya untuk engine_command                  |
 
 **Overall Frontend**: 100% ✅
 
@@ -292,6 +300,10 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
+| 2026-03-29 | **WS Keepalive Ping** | Backend | `app.py` — `_broadcast_keepalive` emit `server_ping` tiap 30s + `pong` handler — mencegah Cloudflare idle timeout |
+| 2026-03-29 | **Supabase-First: DB Migration** | Database | Tambah `total_valid`, `total_pelanggaran`, `compliance_rate` ke `camera_heartbeats` + `REPLICA IDENTITY FULL` + Realtime aktif di `events` partitions |
+| 2026-03-29 | **Supabase-First: Backend Publisher** | Backend | `supabase/publisher.py` — dual-write stats ke `camera_heartbeats` + engine status ke `cameras.detection_state` (silent-fail) |
+| 2026-03-29 | **Supabase-First: Frontend Realtime** | Frontend | `useMonitoringRealtime.js` — 3 Supabase Realtime channels menggantikan `useSocketEvent` untuk engine_status, stats, detection_event |
 | 2026-03-27 | **Supabase RLS & Index Optimization** | Database | Refactored `get_user_role`, `get_user_tenant_id`, dedup policies, 27 new indexes — eliminated `queue_timeout` connection pool exhaustion |
 | 2026-03-27 | **Auth Stale Session Fix** | Frontend | `AuthContext.jsx` — force `signOut()` + clear cache when refresh token expired/invalid — eliminates silent broken session |
 | 2026-03-27 | **WebSocket Transport Fix** | Frontend | `socket.js` — changed transport order to `["polling", "websocket"]` — fixes Cloudflare proxy timeout on initial WS connection |
@@ -338,7 +350,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-27 11:21 WITA  
+**Last Updated**: 2026-03-29 00:04 WITA  
 **Next Review**: 2026-03-31 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 

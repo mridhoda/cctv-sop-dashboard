@@ -52,6 +52,11 @@ export function getSocket() {
     socket.on("disconnect", (reason) => {
       console.log("[Socket] Disconnected:", reason);
     });
+
+    // Keepalive — reply to server ping to prevent Cloudflare idle timeout
+    socket.on("server_ping", () => {
+      socket.emit("pong");
+    });
   }
   return socket;
 }

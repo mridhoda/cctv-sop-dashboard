@@ -208,15 +208,22 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // signOut may fail (network) — still clear local state
-    }
+    // 1. Clear local state immediately so the UI responds right away,
+    //    even when the network is down or the WebSocket has timed out.
     sessionStorage.removeItem("skipAutoLogin");
     setUser(null);
     setProfile(null);
-    clearProfileCache(); // ← also clear cache on logout
+    clearProfileCache();
+
+    // 2. Sign out LOCALLY only.
+    //    This avoids sending a network request to the Auth server.
+    //    If a network request hangs, it blocks the Supabase GoTrue internal queue,
+    //    causing any subsequent log-in attempts (`signInWithPassword`) to hang indefinitely.
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (err) {
+      console.warn("[Auth] local signOut error:", err.message);
+    }
   }, []);
 
   /**

@@ -39,6 +39,9 @@ import { queryClient } from "./lib/queryClient";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastProvider, useToast } from "./components/ui/Toast";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { useNotificationContext } from "./contexts/NotificationContext";
+import NotificationDropdown from "./components/ui/NotificationDropdown";
 import {
   useDashboardSummary,
   useRecentIncidents,
@@ -492,6 +495,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
 function DashboardShell() {
   const { user, logout, hasPermission, getAllowedTabs } = useAuth();
   const { addToast } = useToast();
+  const { unreadCount } = useNotificationContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Subscribe to Supabase Realtime events (background)
@@ -708,75 +712,19 @@ function DashboardShell() {
                 className="relative flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
               >
                 <Bell size={16} />
-                {/* Unread badge */}
-                <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
-                  2
-                </span>
+                {/* Unread badge — only shows when there are unread notifications */}
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </button>
 
-              {/* Notification dropdown */}
-              {showNotifDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-slate-800">
-                        Notifikasi
-                      </h4>
-                      <span className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 text-[10px] font-bold text-rose-600">
-                        2
-                      </span>
-                    </div>
-                    <button className="text-[11px] text-slate-500 hover:text-slate-700 font-medium">
-                      ✓ Tandai semua dibaca
-                    </button>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
-                    {/* Sample notifications */}
-                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">
-                          Pelanggaran Helm
-                        </p>
-                        <p className="text-xs text-slate-500 truncate">
-                          Budi Santoso – Produksi A
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          2 menit lalu
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-rose-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">
-                          Kamera Offline
-                        </p>
-                        <p className="text-xs text-slate-500 truncate">
-                          CCTV 03 – Packing tidak merespons
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          15 menit lalu
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <div className="shrink-0 mt-0.5 h-2 w-2 rounded-full bg-emerald-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">
-                          SOP Terverifikasi
-                        </p>
-                        <p className="text-xs text-slate-500 truncate">
-                          7 staff compliant shift pagi
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          1 jam lalu
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Real-time notification dropdown */}
+              <NotificationDropdown
+                isOpen={showNotifDropdown}
+                onNavigate={handleTabChange}
+              />
             </div>
 
             {/* Divider */}
@@ -938,7 +886,9 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          <AppContent />
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

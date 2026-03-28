@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Shield,
@@ -20,7 +20,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../components/ui/Toast";
 
 const loginSchema = z.object({
-  email: z.string().email("Format email tidak valid").min(1, "Email wajib diisi"),
+  email: z
+    .string()
+    .email("Format email tidak valid")
+    .min(1, "Email wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
@@ -40,16 +43,34 @@ export default function LoginPage({ onSwitchView }) {
     defaultValues: { email: "", password: "" },
   });
 
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load saved email on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("vg_remembered_email");
+    if (savedEmail) {
+      setValue("email", savedEmail);
+      setRememberMe(true);
+    }
+  }, [setValue]);
+
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
       await login({ email: data.email, password: data.password });
+
+      // Handle Remember Me
+      if (rememberMe) {
+        localStorage.setItem("vg_remembered_email", data.email);
+      } else {
+        localStorage.removeItem("vg_remembered_email");
+      }
+
       addToast({ type: "success", message: "Login berhasil! Selamat datang." });
     } catch (error) {
       addToast({
         type: "error",
-        message:
-          error.message || "Login gagal. Periksa email dan password.",
+        message: error.message || "Login gagal. Periksa email dan password.",
       });
     } finally {
       setIsLoading(false);
@@ -193,23 +214,34 @@ export default function LoginPage({ onSwitchView }) {
                   )}
                 </button>
               </div>
-              <div className="mt-1 flex justify-between items-center">
-                {errors.password ? (
-                  <p className="text-xs text-rose-500">
-                    {errors.password.message}
-                  </p>
-                ) : (
-                  <div></div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onSwitchView?.("forgot_password")}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
-                  Lupa password?
-                </button>
-              </div>
+              {errors.password && (
+                <p className="mt-1 text-xs text-rose-500">
+                  {errors.password.message}
+                </p>
+              )}
             </label>
+
+            <div className="flex items-center justify-between pb-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-slate-300 text-emerald-500 shadow-sm focus:border-emerald-500 focus:ring focus:ring-emerald-200 focus:ring-opacity-50"
+                />
+                <span className="text-sm text-slate-600 font-medium">
+                  Ingat saya
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => onSwitchView?.("forgot_password")}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+              >
+                Lupa password?
+              </button>
+            </div>
 
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -219,16 +251,16 @@ export default function LoginPage({ onSwitchView }) {
 
           {/* Links */}
           <div className="mt-8 text-center text-sm">
-             <p className="text-slate-500">
-                Belum punya akun?{" "}
-                <button
-                  type="button"
-                  onClick={() => onSwitchView?.("signup")}
-                  className="font-bold text-slate-900 transition hover:underline"
-                >
-                  Daftar di sini
-                </button>
-             </p>
+            <p className="text-slate-500">
+              Belum punya akun?{" "}
+              <button
+                type="button"
+                onClick={() => onSwitchView?.("signup")}
+                className="font-bold text-slate-900 transition hover:underline"
+              >
+                Daftar di sini
+              </button>
+            </p>
           </div>
 
           {/* Demo info */}
