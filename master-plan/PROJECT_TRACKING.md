@@ -43,6 +43,10 @@
 | **Supabase-First Migration (DB)** | Database  | ✅ Complete | Mar 29   | `total_valid`, `total_pelanggaran`, `compliance_rate` + REPLICA IDENTITY FULL |
 | **Supabase-First Migration (BE)** | Backend   | ✅ Complete | Mar 29   | `supabase/publisher.py` — dual-write stats + engine status                    |
 | **Supabase-First Migration (FE)** | Frontend  | ✅ Complete | Mar 29   | `useMonitoringRealtime.js` — 3 Realtime channels, WS hanya emit               |
+| **Mobile Layout Optimization**    | Frontend  | ✅ Complete | Mar 29   | `Monitoring.jsx`, `Reports.jsx` — responsive height & grid-cols-2 on mobile   |
+| **Auth: Session Timeout Guard**   | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — `getSession()` wrapped in 5s `Promise.race` timeout       |
+| **Auth: Logout GoTrue Reset**     | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — `window.location.reload()` setelah logout bersihkan queue |
+| **Auth: StrictMode Loading Fix**  | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — Hapus `initDone` ref, always call `setLoading(false)`     |
 
 ---
 
@@ -300,6 +304,11 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
+| 2026-03-29 | **Bugfix: Auth Loading Stuck (StrictMode)** | Frontend | `AuthContext.jsx` — Root cause fix: `initDone` ref + StrictMode = `setLoading(false)` tidak pernah terpanggil. Fix: hapus `initDone` guard, ubah `if (mounted) setLoading(false)` → `setLoading(false)` di `finally`. |
+| 2026-03-29 | **Bugfix: Auth GoTrue Queue Deadlock** | Frontend | `AuthContext.jsx` — `window.location.reload()` setelah logout untuk reset seluruh GoTrue client state. Mencegah `signInWithPassword` hang pada login ke-2 setelah logout. |
+| 2026-03-29 | **Bugfix: getSession Infinite Hang** | Frontend | `AuthContext.jsx` — `getSession()` di-wrap dalam `Promise.race` dengan 5s timeout agar "Memverifikasi sesi..." tidak stuck selamanya saat network lambat. |
+| 2026-03-29 | **Mobile Layout: Live Streaming** | Frontend | `Monitoring.jsx` — `lg:h-[calc(100vh-120px)]` + `min-h-[320px]` agar CCTV feed tampil dengan benar di layar mobile. |
+| 2026-03-29 | **Mobile Layout: Reports Summary** | Frontend | `Reports.jsx` — Grid `grid-cols-4` → `grid-cols-2 sm:grid-cols-4` agar summary card tidak terlalu kecil di mobile. |
 | 2026-03-29 | **Bugfix: Infinite Load on Logout** | Frontend | `AuthContext.jsx` — Fixed Supabase GoTrue queue stall by changing logout scope to global with a 3s timeout guard, adding `setLoading(true)` to `login`. |
 | 2026-03-29 | **Bugfix: History Timezone Zero-Hour** | Frontend | `History.jsx`, `Reports.jsx` — Fixed local-to-UTC date conversion bug that hid events from 00:00 - 08:00 WITA. Now uses `toISOString()`. |
 | 2026-03-29 | **Supabase-First: Realtime Partition Fix** | Frontend | `useMonitoringRealtime.js` — Resolved issue where Realtime CDC only fires from partition tables (`events_y2026m03`) not the parent. |
@@ -353,7 +362,7 @@ Velocity: 8 tasks/sprint ✅
 
 ---
 
-**Last Updated**: 2026-03-29 01:00 WITA  
+**Last Updated**: 2026-03-29 01:34 WITA  
 **Next Review**: 2026-03-31 (Weekly Sync)  
 **Reported by**: Frontend Developer / Tech Lead
 

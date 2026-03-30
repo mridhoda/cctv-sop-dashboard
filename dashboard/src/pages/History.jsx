@@ -15,7 +15,7 @@ import {
   Camera,
   ChevronDown,
 } from "lucide-react";
-import { useEvents } from "../hooks/useEvents";
+import { useEventsRealtime } from "../hooks/useEventsRealtime";
 import { exportEventsCSV, getPhotoSignedUrl } from "../services/events";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
@@ -110,15 +110,18 @@ export default function History() {
     loadPhotoUrl();
   }, [selectedIncident]);
 
-  const { date_from, date_to } = getPeriodDates(period);
+  const { date_from, date_to } = useMemo(
+    () => getPeriodDates(period),
+    [period],
+  );
 
-  // Fetch events from API
+  // Fetch events via Supabase Realtime (replaces React Query polling)
   const {
     data: eventsData,
     isLoading,
     error,
     refetch,
-  } = useEvents({
+  } = useEventsRealtime({
     page: currentPage,
     limit: itemsPerPage,
     status:

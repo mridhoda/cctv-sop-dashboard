@@ -42,11 +42,7 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { useNotificationContext } from "./contexts/NotificationContext";
 import NotificationDropdown from "./components/ui/NotificationDropdown";
-import {
-  useDashboardSummary,
-  useRecentIncidents,
-  useCameraStatus,
-} from "./hooks/useDashboard";
+import { useDashboardRealtime } from "./hooks/useDashboardRealtime";
 import { useFaceRecognition } from "./hooks/useFaceRecognition";
 import { useRealtimeEvents } from "./hooks/useRealtimeEvents";
 import RefreshButton from "./components/ui/RefreshButton";
@@ -86,32 +82,20 @@ import ProfilePage from "./pages/ProfilePage";
 // ─── Dashboard Home Tab ─────────────────────────────────────
 function DashboardHomeTab({ onTabChange, hasPermission }) {
   const {
-    data: summaryData,
+    summary: summaryData,
+    incidents: incidentsData,
+    cameras: camerasData,
     isLoading: summaryLoading,
     error: summaryError,
-    refetch: refetchSummary,
-  } = useDashboardSummary();
-  const {
-    data: incidentsData,
-    isLoading: incidentsLoading,
-    refetch: refetchIncidents,
-  } = useRecentIncidents(5);
-  const {
-    data: camerasData,
-    isLoading: camerasLoading,
-    refetch: refetchCameras,
-  } = useCameraStatus();
+    refetch: refetchAll,
+  } = useDashboardRealtime();
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
   const [selectedIncident, setSelectedIncident] = useState(null);
 
   // Extract data from API responses, falling back gracefully
-  const summary = summaryData?.data || summaryData || {};
-  const incidents = Array.isArray(incidentsData)
-    ? incidentsData
-    : incidentsData?.data || [];
-  const cameras = Array.isArray(camerasData)
-    ? camerasData
-    : camerasData?.data || [];
+  const summary = summaryData || {};
+  const incidents = Array.isArray(incidentsData) ? incidentsData : [];
+  const cameras = Array.isArray(camerasData) ? camerasData : [];
 
   // Build metrics from summary or use defaults
   const totalDetections =
@@ -148,7 +132,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
   }
 
   if (summaryError) {
-    return <ErrorMessage error={summaryError} onRetry={refetchSummary} />;
+    return <ErrorMessage error={summaryError} onRetry={refetchAll} />;
   }
 
   return (
@@ -163,9 +147,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <RefreshButton
-            onRefresh={[refetchSummary, refetchIncidents, refetchCameras]}
-          />
+          <RefreshButton onRefresh={refetchAll} />
           <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 shadow-sm flex items-center gap-2">
             <Clock size={16} /> Update terakhir: Baru saja
           </div>

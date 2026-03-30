@@ -12,6 +12,8 @@ export function useEvents(params = {}) {
     keepPreviousData: true,
     retry: 1,
     retryDelay: 1000,
-    staleTime: 20_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 }

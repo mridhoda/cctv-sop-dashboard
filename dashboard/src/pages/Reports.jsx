@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Camera,
   Image,
@@ -15,8 +15,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
-import { useEvents } from "../hooks/useEvents";
-import { useReportStats } from "../hooks/useReportStats";
+import { useEventsRealtime } from "../hooks/useEventsRealtime";
 import { exportEventsCSV } from "../services/events";
 import { getPhotoUrl } from "../lib/storage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -89,22 +88,19 @@ export default function Reports() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const { addToast } = useToast();
 
-  const { date_from, date_to } = getPeriodDates(period);
+  const { date_from, date_to } = useMemo(
+    () => getPeriodDates(period),
+    [period],
+  );
 
-  // Fetch report stats for the top cards
-  const {
-    data: statsMap,
-    isLoading: isLoadingStats,
-    refetch: refetchStats,
-  } = useReportStats(date_from, date_to);
-
-  // Fetch reports (events with photos)
+  // Fetch reports (events with photos) + stats via Supabase Realtime
   const {
     data: apiData,
+    stats: statsMap,
     isLoading,
     error,
     refetch,
-  } = useEvents({
+  } = useEventsRealtime({
     has_photo: true,
     page: currentPage,
     limit: itemsPerPage,
