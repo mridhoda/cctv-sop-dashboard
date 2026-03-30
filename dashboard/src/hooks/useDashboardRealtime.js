@@ -16,6 +16,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { createTimer, reportDataAccess } from "../utils/dataAccessTelemetry";
 import { withTimeout } from "../utils/withTimeout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -49,6 +50,35 @@ function calcDelta(todayVal, yesterdayVal) {
 
 // ── Fetch helpers ──────────────────────────────────────────────────────────
 
+const DASHBOARD_CACHE_KEY = "dashboard_cache:home";
+
+function readDashboardCache() {
+  if (typeof sessionStorage === "undefined") return null;
+
+  try {
+    const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashboardCache(payload) {
+  if (typeof sessionStorage === "undefined") return;
+
+  try {
+    sessionStorage.setItem(
+      DASHBOARD_CACHE_KEY,
+      JSON.stringify({
+        ...payload,
+        cachedAt: new Date().toISOString(),
+      }),
+    );
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
 async function fetchDailyCounts(metric, days) {
   const queries = days.map((day) => {
     // Build proper Date objects so toISOString() gives correct UTC timestamps
@@ -60,7 +90,7 @@ async function fetchDailyCounts(metric, days) {
 
     let q = supabase
       .from("events")
-      .select("*", { count: "exact", head: true })
+      .select("*", { count: "estimated", head: true })
       .gte("timestamp", start)
       .lte("timestamp", end);
 
@@ -201,35 +231,136 @@ export function useDashboardRealtime() {
   const [cameras, setCameras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDegraded, setIsDegraded] = useState(false);
 
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
+  const lastSuccessfulResultRef = useRef(null);
+
+  useEffect(() => {
+    const cached = readDashboardCache();
+    if (!cached) return;
+
+    lastSuccessfulResultRef.current = cached;
+    setSummary(cached.summary || null);
+    setIncidents(cached.incidents || []);
+    setCameras(cached.cameras || []);
+    setLoading(false);
+
+    reportDataAccess("dashboard.cache.hit", {
+      cacheKey: DASHBOARD_CACHE_KEY,
+    });
+  }, []);
 
   // ── Fetch all data ─────────────────────────────────────────────────────
   const fetchAll = useCallback(async (showLoading = true) => {
     const fetchId = ++fetchCountRef.current;
+    const stopTimer = createTimer();
+    const cached = readDashboardCache();
 
-    if (showLoading) setLoading(true);
+    if (showLoading && !cached?.summary) setLoading(true);
     setError(null);
+    setIsDegraded(false);
+
+    reportDataAccess("dashboard.fetch.start", {
+      includeSummary: true,
+      includeIncidents: true,
+      includeCameras: true,
+    });
 
     try {
-      const [summaryResult, incidentsResult, camerasResult] = await Promise.all(
-        [
+      const [summaryResult, incidentsResult, camerasResult] =
+        await Promise.allSettled([
           fetchSummary(),
           fetchRecentIncidents(INCIDENT_LIMIT),
           fetchCameraStatus(),
-        ],
-      );
+        ]);
 
       if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
 
-      setSummary(summaryResult);
-      setIncidents(incidentsResult);
-      setCameras(camerasResult);
+      const summaryFailed = summaryResult.status === "rejected";
+      const incidentsFailed = incidentsResult.status === "rejected";
+      const camerasFailed = camerasResult.status === "rejected";
+      const fallback = lastSuccessfulResultRef.current || cached;
+
+      if (!summaryFailed) {
+        setSummary(summaryResult.value);
+      }
+
+      if (!incidentsFailed) {
+        setIncidents(incidentsResult.value);
+      }
+
+      if (!camerasFailed) {
+        setCameras(camerasResult.value);
+      }
+
+      if (!summaryFailed && !incidentsFailed && !camerasFailed) {
+        const nextCachedValue = {
+          summary: summaryResult.value,
+          incidents: incidentsResult.value,
+          cameras: camerasResult.value,
+        };
+
+        lastSuccessfulResultRef.current = nextCachedValue;
+        writeDashboardCache(nextCachedValue);
+
+        reportDataAccess("dashboard.fetch.success", {
+          durationMs: stopTimer(),
+          incidents: incidentsResult.value.length,
+          cameras: camerasResult.value.length,
+        });
+
+        return;
+      }
+
+      const effectiveError =
+        (summaryFailed && summaryResult.reason) ||
+        (incidentsFailed && incidentsResult.reason) ||
+        (camerasFailed && camerasResult.reason);
+
+      reportDataAccess("dashboard.fetch.degraded", {
+        level: fallback ? "warn" : "error",
+        durationMs: stopTimer(),
+        hasFallback: Boolean(fallback),
+        error: effectiveError,
+      });
+
+      if (fallback) {
+        setIsDegraded(true);
+
+        if (summaryFailed) {
+          setSummary(fallback.summary || null);
+        }
+
+        if (incidentsFailed) {
+          setIncidents(fallback.incidents || []);
+        }
+
+        if (camerasFailed) {
+          setCameras(fallback.cameras || []);
+        }
+      } else {
+        setError(effectiveError);
+      }
     } catch (err) {
       if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
       console.error("[DashboardRT] Fetch error:", err.message);
-      setError(err);
+      reportDataAccess("dashboard.fetch.error", {
+        level: "error",
+        durationMs: stopTimer(),
+        error: err,
+      });
+
+      const fallback = lastSuccessfulResultRef.current || cached;
+      if (fallback) {
+        setIsDegraded(true);
+        setSummary(fallback.summary || null);
+        setIncidents(fallback.incidents || []);
+        setCameras(fallback.cameras || []);
+      } else {
+        setError(err);
+      }
     } finally {
       if (mountedRef.current && fetchId === fetchCountRef.current) {
         setLoading(false);
@@ -411,6 +542,7 @@ export function useDashboardRealtime() {
     incidents,
     cameras,
     isLoading: loading,
+    isDegraded,
     error,
     refetch: () => fetchAll(true),
   };

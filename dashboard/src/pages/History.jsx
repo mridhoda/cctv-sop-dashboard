@@ -119,6 +119,7 @@ export default function History() {
   const {
     data: eventsData,
     isLoading,
+    isDegraded,
     error,
     refetch,
   } = useEventsRealtime({
@@ -133,6 +134,8 @@ export default function History() {
     search: searchQuery || undefined,
     date_from,
     date_to,
+    includeStats: false,
+    view: "history",
   });
 
   if (isLoading) {
@@ -201,11 +204,17 @@ export default function History() {
     eventsData?.total_pages ||
     Math.ceil(filteredIncidents.length / itemsPerPage) ||
     1;
+  const hasMorePages = Boolean(eventsData?.hasMore);
   const paginatedIncidents = eventsData?.totalPages
     ? filteredIncidents
     : filteredIncidents.slice(0, itemsPerPage);
 
-  const totalEntries = eventsData?.total ?? filteredIncidents.length;
+  const totalEntries =
+    typeof eventsData?.total === "number"
+      ? hasMorePages
+        ? `${eventsData.total}+`
+        : eventsData.total
+      : filteredIncidents.length;
 
   const handleRowClick = (incident) => {
     setSelectedIncident(incident);
@@ -246,6 +255,13 @@ export default function History() {
 
       {/* Filter Bar */}
       <Card className="p-4" animate={false}>
+        {isDegraded && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Riwayat sedang memakai cache terakhir karena request terbaru lambat
+            atau timeout.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Status Filter */}
           <div className="md:col-span-3 flex items-center gap-2">
@@ -468,7 +484,9 @@ export default function History() {
 
           <button
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages || totalPages === 0}
+            disabled={
+              (!hasMorePages && currentPage === totalPages) || totalPages === 0
+            }
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Selanjutnya

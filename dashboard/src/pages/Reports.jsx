@@ -98,6 +98,7 @@ export default function Reports() {
     data: apiData,
     stats: statsMap,
     isLoading,
+    isDegraded,
     error,
     refetch,
   } = useEventsRealtime({
@@ -112,6 +113,8 @@ export default function Reports() {
           : undefined,
     date_from,
     date_to,
+    includeStats: true,
+    view: "reports",
   });
 
   if (isLoading) {
@@ -173,6 +176,7 @@ export default function Reports() {
 
   // Pagination — support API-driven (totalPages in response) or client-side slice
   const apiTotalPages = apiData?.totalPages || apiData?.total_pages;
+  const hasMorePages = Boolean(apiData?.hasMore);
   const totalPages =
     apiTotalPages || Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginatedReports = apiTotalPages
@@ -181,6 +185,12 @@ export default function Reports() {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage,
       );
+  const totalReportLabel =
+    typeof apiData?.total === "number"
+      ? hasMorePages
+        ? `${apiData.total}+`
+        : apiData.total
+      : filtered.length;
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
@@ -240,6 +250,13 @@ export default function Reports() {
               </button>
             </div>
           </div>
+
+          {isDegraded && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Laporan sedang memakai cache terakhir karena query terbaru lambat
+              atau timeout.
+            </div>
+          )}
 
           {/* Stats Bar */}
           <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
@@ -453,12 +470,12 @@ export default function Reports() {
               </span>{" "}
               dari{" "}
               <span className="font-semibold text-slate-900">{totalPages}</span>{" "}
-              ({filtered.length} total laporan)
+              ({totalReportLabel} total laporan)
             </div>
 
             <button
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              disabled={!hasMorePages && currentPage === totalPages}
               className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Selanjutnya

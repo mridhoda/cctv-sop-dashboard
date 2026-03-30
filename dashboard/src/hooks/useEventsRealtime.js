@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
+import { createTimer, reportDataAccess } from "../utils/dataAccessTelemetry";
 import { withTimeout } from "../utils/withTimeout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -30,6 +31,20 @@ function stableKey(obj) {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_STATS = { total: 0, violations: 0, valid: 0 };
+const EVENT_SELECTS = {
+  history: `
+      id, timestamp, location, status, violation_type,
+      staff_name, photo_path, ai_description,
+      is_reviewed, review_notes,
+      cameras(id, name, location)
+    `,
+  reports: `
+      id, timestamp, location, status, violation_type,
+      photo_path, ai_description, confidence_person,
+      cameras(id, name, location)
+    `,
+};
 
 function readCache(key) {
   if (typeof sessionStorage === "undefined") return null;
@@ -67,21 +82,16 @@ async function queryEvents({
   date_to,
   has_photo,
   search,
+  view = "history",
 }) {
+  const start = (page - 1) * limit;
+  const end = start + limit;
+
   let query = supabase
     .from("events")
-    .select(
-      `
-      id, timestamp, location, status, violation_type,
-      missing_sops, confidence_person, confidence_sop,
-      staff_name, photo_path, ai_description, track_id,
-      is_reviewed, review_notes, detection_type,
-      cameras(id, name, location)
-    `,
-      { count: "estimated" },
-    )
+    .select(EVENT_SELECTS[view] || EVENT_SELECTS.history)
     .order("timestamp", { ascending: false })
-    .range((page - 1) * limit, page * limit - 1);
+    .range(start, end);
 
   if (status) query = query.eq("status", status);
   if (date_from) query = query.gte("timestamp", date_from);
@@ -89,21 +99,27 @@ async function queryEvents({
   if (has_photo) query = query.not("photo_path", "is", null);
   if (search) query = query.textSearch("search_vector", search);
 
-  const { data, error, count } = await withTimeout(
+  const { data, error } = await withTimeout(
     query,
     FETCH_TIMEOUT_MS,
     "events query",
   );
   if (error) throw error;
 
-  const total = typeof count === "number" ? count : (data || []).length;
+  const rows = data || [];
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const total = hasMore
+    ? page * limit + 1
+    : (page - 1) * limit + pageRows.length;
 
   return {
-    data: data || [],
+    data: pageRows,
     total,
     page,
     limit,
-    totalPages: Math.ceil(total / limit),
+    totalPages: hasMore ? page + 1 : Math.max(1, page),
+    hasMore,
   };
 }
 
@@ -179,22 +195,46 @@ export function useEventsRealtime(params = {}) {
     date_to,
     has_photo,
     search,
+    includeStats = false,
+    view = "history",
   } = params;
 
   // ── State ──────────────────────────────────────────────────────────────
   const [eventsData, setEventsData] = useState(null);
-  const [stats, setStats] = useState({ total: 0, violations: 0, valid: 0 });
+  const [stats, setStats] = useState(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDegraded, setIsDegraded] = useState(false);
 
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
+  const lastSuccessfulResultRef = useRef(null);
 
   // Stabilize params for dependency tracking
   const paramsKey = useMemo(
     () =>
-      stableKey({ page, limit, status, date_from, date_to, has_photo, search }),
-    [page, limit, status, date_from, date_to, has_photo, search],
+      stableKey({
+        page,
+        limit,
+        status,
+        date_from,
+        date_to,
+        has_photo,
+        search,
+        includeStats,
+        view,
+      }),
+    [
+      page,
+      limit,
+      status,
+      date_from,
+      date_to,
+      has_photo,
+      search,
+      includeStats,
+      view,
+    ],
   );
 
   const cacheKey = useMemo(() => `events_cache:${paramsKey}`, [paramsKey]);
@@ -204,16 +244,34 @@ export function useEventsRealtime(params = {}) {
     if (cached?.eventsData) {
       setEventsData(cached.eventsData);
       if (cached.stats) setStats(cached.stats);
+      lastSuccessfulResultRef.current = cached;
+      setLoading(false);
+      reportDataAccess("events.cache.hit", {
+        scope: view,
+        cacheKey,
+      });
     }
-  }, [cacheKey]);
+  }, [cacheKey, view]);
 
   // ── Fetch function ─────────────────────────────────────────────────────
   const fetchData = useCallback(
     async (showLoading = true) => {
       const fetchId = ++fetchCountRef.current;
+      const stopTimer = createTimer();
+      const cached = readCache(cacheKey);
 
-      if (showLoading) setLoading(true);
+      if (showLoading && !cached?.eventsData) setLoading(true);
       setError(null);
+      setIsDegraded(false);
+
+      reportDataAccess("events.fetch.start", {
+        scope: view,
+        page,
+        limit,
+        hasSearch: Boolean(search),
+        hasPhoto: Boolean(has_photo),
+        includeStats,
+      });
 
       // Gunakan parameter terbaru dari state dependen, BUKAN dari closure mount pertama
       const queryEventsParams = {
@@ -224,6 +282,7 @@ export function useEventsRealtime(params = {}) {
         date_to,
         has_photo,
         search,
+        view,
       };
 
       console.log("[EventsRT] Fetching with params:", queryEventsParams);
@@ -231,12 +290,16 @@ export function useEventsRealtime(params = {}) {
       try {
         const [eventsResult, statsResult] = await Promise.allSettled([
           queryEvents(queryEventsParams),
-          queryStats(date_from, date_to),
+          includeStats ? queryStats(date_from, date_to) : Promise.resolve(null),
         ]);
 
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
 
-        if (eventsResult.status === "fulfilled") {
+        const eventsFailed = eventsResult.status === "rejected";
+        const statsFailed = includeStats && statsResult.status === "rejected";
+        const fallback = lastSuccessfulResultRef.current || cached;
+
+        if (!eventsFailed) {
           console.log(
             "[EventsRT] Fetched raw event data length:",
             eventsResult.value?.data?.length,
@@ -244,27 +307,83 @@ export function useEventsRealtime(params = {}) {
           setEventsData(eventsResult.value);
         }
 
-        if (statsResult.status === "fulfilled") {
+        if (includeStats && statsResult.status === "fulfilled") {
           setStats(statsResult.value);
         }
 
-        if (eventsResult.status === "fulfilled") {
-          writeCache(cacheKey, {
+        if (!eventsFailed) {
+          const nextCachedValue = {
             eventsData: eventsResult.value,
             stats:
-              statsResult.status === "fulfilled" ? statsResult.value : stats,
-          });
+              includeStats && statsResult.status === "fulfilled"
+                ? statsResult.value
+                : fallback?.stats || DEFAULT_STATS,
+          };
+
+          lastSuccessfulResultRef.current = nextCachedValue;
+          writeCache(cacheKey, nextCachedValue);
         }
+
+        if (eventsFailed || statsFailed) {
+          const effectiveError = eventsFailed
+            ? eventsResult.reason
+            : statsResult.reason;
+          const hasFallback = Boolean(fallback?.eventsData);
+
+          reportDataAccess("events.fetch.degraded", {
+            level: hasFallback ? "warn" : "error",
+            scope: view,
+            durationMs: stopTimer(),
+            hasFallback,
+            includeStats,
+            error: effectiveError,
+          });
+
+          if (hasFallback) {
+            setIsDegraded(true);
+
+            if (eventsFailed) {
+              setEventsData(fallback.eventsData);
+            }
+
+            if (statsFailed && fallback.stats) {
+              setStats(fallback.stats);
+            }
+          } else {
+            setError(effectiveError);
+          }
+
+          return;
+        }
+
+        reportDataAccess("events.fetch.success", {
+          scope: view,
+          durationMs: stopTimer(),
+          rows: eventsResult.value?.data?.length || 0,
+          includeStats,
+          hasMore: Boolean(eventsResult.value?.hasMore),
+        });
       } catch (err) {
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
         console.error("[EventsRT] fetch error:", err);
-        setError(err);
-        const cached = readCache(cacheKey);
-        if (cached?.eventsData) {
-          setEventsData((prev) => prev ?? cached.eventsData);
-          if (cached.stats) {
-            setStats((prev) => (prev?.total ? prev : cached.stats));
+        reportDataAccess("events.fetch.error", {
+          level: "error",
+          scope: view,
+          durationMs: stopTimer(),
+          includeStats,
+          error: err,
+        });
+
+        const fallback = lastSuccessfulResultRef.current || cached;
+        if (fallback?.eventsData) {
+          setIsDegraded(true);
+          setEventsData(fallback.eventsData);
+
+          if (fallback.stats) {
+            setStats(fallback.stats);
           }
+        } else {
+          setError(err);
         }
       } finally {
         if (mountedRef.current && fetchId === fetchCountRef.current) {
@@ -282,6 +401,8 @@ export function useEventsRealtime(params = {}) {
       has_photo,
       search,
       cacheKey,
+      includeStats,
+      view,
     ],
   );
 
@@ -402,6 +523,7 @@ export function useEventsRealtime(params = {}) {
     data: eventsData,
     stats,
     isLoading: loading,
+    isDegraded,
     error,
     refetch: () => fetchData(true),
   };

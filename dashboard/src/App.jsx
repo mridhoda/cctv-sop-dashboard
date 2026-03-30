@@ -86,6 +86,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
     incidents: incidentsData,
     cameras: camerasData,
     isLoading: summaryLoading,
+    isDegraded: dashboardDegraded,
     error: summaryError,
     refetch: refetchAll,
   } = useDashboardRealtime();
@@ -137,6 +138,13 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
 
   return (
     <div className="space-y-6">
+      {dashboardDegraded && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Dashboard sedang memakai data cache terakhir karena request terbaru
+          lambat atau timeout.
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
