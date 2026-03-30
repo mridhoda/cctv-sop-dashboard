@@ -14,6 +14,7 @@ const AuthContext = createContext(null);
 // Profile cache helpers — store profile in localStorage so UI loads instantly
 // on refresh without waiting for a Supabase round-trip.
 const PROFILE_CACHE_KEY = "vg_profile";
+const EVENTS_CACHE_PREFIX = "events_cache:";
 
 const saveProfileCache = (data) => {
   try {
@@ -34,6 +35,32 @@ const getProfileCache = () => {
 const clearProfileCache = () => {
   try {
     localStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
+const clearEventsCache = () => {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith(EVENTS_CACHE_PREFIX)) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+};
+
+const clearClientCache = async () => {
+  clearProfileCache();
+  clearEventsCache();
+
+  try {
+    if (typeof caches === "undefined") return;
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
   } catch {
     /* ignore */
   }
@@ -126,14 +153,25 @@ export function AuthProvider({ children }) {
 
         const { data: { session } = {}, error } = sessionResult;
 
-        if (error || !session?.user) {
-          // No valid session — clear everything
+        if (error) {
+          // Hard auth failures: clear session explicitly
           if (
             error?.message?.includes("Refresh Token") ||
             error?.status === 400
           ) {
             await supabase.auth.signOut().catch(() => {});
+            setUser(null);
+            setProfile(null);
+            clearProfileCache();
+          } else {
+            // Transient/network auth error: keep cached UI state
+            console.warn(
+              "[Auth] getSession returned transient error, keeping cache:",
+              error.message,
+            );
           }
+        } else if (!session?.user) {
+          // No valid session
           setUser(null);
           setProfile(null);
           clearProfileCache();
@@ -146,11 +184,12 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         console.warn("[Auth] Session init error:", err.message);
-        // On timeout or network error, clear user state so login page shows
+        // On timeout/network jitter, keep cached profile to avoid false logout.
+        // A later auth event or manual refresh will reconcile state.
         if (err.message === "getSession timeout") {
-          setUser(null);
-          setProfile(null);
-          clearProfileCache();
+          console.warn(
+            "[Auth] getSession timeout, preserving cached profile state",
+          );
         }
       } finally {
         // Always resolve loading — React 18 ignores state updates on unmounted
@@ -167,19 +206,19 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      // Treat any missing session as a logout — covers expired refresh tokens
-      // that don't always emit SIGNED_OUT (e.g. revoked on another device)
-      if (!session?.user) {
+      if (event === "SIGNED_OUT") {
+        void clearClientCache();
         setUser(null);
         setProfile(null);
-        clearProfileCache();
         return;
       }
 
-      if (event === "SIGNED_OUT") {
-        setUser(null);
-        setProfile(null);
-        clearProfileCache();
+      // Avoid hard logout on transient auth event jitter.
+      // We only hard-clear on explicit SIGNED_OUT above.
+      if (!session?.user) {
+        console.warn(
+          `[Auth] Ignoring transient auth event without session: ${event}`,
+        );
         return;
       }
 
@@ -226,7 +265,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     // 1. Clear local state immediately
     sessionStorage.removeItem("skipAutoLogin");
-    clearProfileCache();
+    await clearClientCache();
 
     // 2. Sign out globally with a timeout to prevent GoTrue queue deadlock.
     try {

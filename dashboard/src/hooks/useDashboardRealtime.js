@@ -16,6 +16,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { withTimeout } from "../utils/withTimeout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,11 @@ async function fetchDailyCounts(metric, days) {
     return q;
   });
 
-  const results = await Promise.all(queries);
+  const results = await withTimeout(
+    Promise.all(queries),
+    FETCH_TIMEOUT_MS,
+    `dashboard daily counts (${metric})`,
+  );
   return results.map((r) => r.count || 0);
 }
 
@@ -126,16 +131,20 @@ async function fetchSummary() {
 }
 
 async function fetchRecentIncidents(limit = 5) {
-  const { data, error } = await supabase
-    .from("events")
-    .select(
-      `id, timestamp, location, status, violation_type,
+  const { data, error } = await withTimeout(
+    supabase
+      .from("events")
+      .select(
+        `id, timestamp, location, status, violation_type,
        staff_name, photo_path, confidence_person, ai_description,
        cameras(id, name, location)`,
-    )
-    .eq("status", "violation")
-    .order("timestamp", { ascending: false })
-    .limit(limit);
+      )
+      .eq("status", "violation")
+      .order("timestamp", { ascending: false })
+      .limit(limit),
+    FETCH_TIMEOUT_MS,
+    "dashboard recent incidents",
+  );
 
   if (error) throw error;
 
@@ -157,10 +166,14 @@ async function fetchRecentIncidents(limit = 5) {
 }
 
 async function fetchCameraStatus() {
-  const { data, error } = await supabase
-    .from("cameras")
-    .select("id, name, location, status, is_enabled, detection_state")
-    .order("created_at", { ascending: true });
+  const { data, error } = await withTimeout(
+    supabase
+      .from("cameras")
+      .select("id, name, location, status, is_enabled, detection_state")
+      .order("created_at", { ascending: true }),
+    FETCH_TIMEOUT_MS,
+    "dashboard camera status",
+  );
 
   if (error) throw error;
   return data || [];
@@ -169,6 +182,7 @@ async function fetchCameraStatus() {
 // ── Constants ──────────────────────────────────────────────────────────────
 const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 const INCIDENT_LIMIT = 5;
+const FETCH_TIMEOUT_MS = 15_000;
 
 // ── Main Hook ──────────────────────────────────────────────────────────────
 

@@ -135,6 +135,14 @@ export default function History() {
     date_to,
   });
 
+  if (isLoading) {
+    return <LoadingSpinner message="Memuat riwayat insiden..." />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} onRetry={refetch} />;
+  }
+
   // Normalize API response — support various shapes
   const rawEvents = Array.isArray(eventsData)
     ? eventsData

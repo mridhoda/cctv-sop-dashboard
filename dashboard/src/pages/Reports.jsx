@@ -114,6 +114,12 @@ export default function Reports() {
     date_to,
   });
 
+  if (isLoading) {
+    return <LoadingSpinner message="Memuat laporan..." />;
+  }
+
+  if (error) return <ErrorMessage error={error} onRetry={refetch} />;
+
   const rawReports = Array.isArray(apiData) ? apiData : apiData?.data || [];
   const allReports = rawReports.map((r) => ({
     id: r.id,
@@ -208,8 +214,6 @@ export default function Reports() {
       addToast({ type: "error", message: "Gagal export CSV" });
     }
   };
-
-  if (error) return <ErrorMessage error={error} onRetry={refetch} />;
 
   return (
     <div className="flex-1 overflow-auto">

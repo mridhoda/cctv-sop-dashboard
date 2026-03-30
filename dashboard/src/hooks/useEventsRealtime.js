@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
+import { withTimeout } from "../utils/withTimeout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,34 @@ function currentEventsPartition() {
 /** Stable serialization for dependency comparison */
 function stableKey(obj) {
   return JSON.stringify(obj);
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function readCache(key) {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.cachedAt) return null;
+    if (Date.now() - parsed.cachedAt > CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(key, payload) {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({ ...payload, cachedAt: Date.now() }),
+    );
+  } catch {
+    /* ignore storage errors */
+  }
 }
 
 // ── Fetch helpers (direct Supabase queries, no React Query) ────────────────
@@ -49,7 +78,7 @@ async function queryEvents({
       is_reviewed, review_notes, detection_type,
       cameras(id, name, location)
     `,
-      { count: "exact" },
+      { count: "estimated" },
     )
     .order("timestamp", { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
@@ -60,31 +89,37 @@ async function queryEvents({
   if (has_photo) query = query.not("photo_path", "is", null);
   if (search) query = query.textSearch("search_vector", search);
 
-  const { data, error, count } = await query;
+  const { data, error, count } = await withTimeout(
+    query,
+    FETCH_TIMEOUT_MS,
+    "events query",
+  );
   if (error) throw error;
+
+  const total = typeof count === "number" ? count : (data || []).length;
 
   return {
     data: data || [],
-    total: count || 0,
+    total,
     page,
     limit,
-    totalPages: Math.ceil((count || 0) / limit),
+    totalPages: Math.ceil(total / limit),
   };
 }
 
 async function queryStats(date_from, date_to) {
   let queryAll = supabase
     .from("events")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "estimated", head: true });
 
   let queryViolations = supabase
     .from("events")
-    .select("*", { count: "exact", head: true })
+    .select("*", { count: "estimated", head: true })
     .eq("status", "violation");
 
   let queryValid = supabase
     .from("events")
-    .select("*", { count: "exact", head: true })
+    .select("*", { count: "estimated", head: true })
     .in("status", ["valid", "compliant"]);
 
   // NOTE: has_photo filter intentionally NOT applied on stats.
@@ -101,11 +136,11 @@ async function queryStats(date_from, date_to) {
     queryValid = queryValid.lte("timestamp", date_to);
   }
 
-  const [allRes, violationRes, validRes] = await Promise.all([
-    queryAll,
-    queryViolations,
-    queryValid,
-  ]);
+  const [allRes, violationRes, validRes] = await withTimeout(
+    Promise.all([queryAll, queryViolations, queryValid]),
+    FETCH_TIMEOUT_MS,
+    "events stats query",
+  );
 
   const firstError = allRes.error || violationRes.error || validRes.error;
   if (firstError) throw firstError;
@@ -119,6 +154,7 @@ async function queryStats(date_from, date_to) {
 
 // ── Safety net interval (ms) ───────────────────────────────────────────────
 const REFRESH_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const FETCH_TIMEOUT_MS = 15_000;
 
 // ── Main Hook ──────────────────────────────────────────────────────────────
 
@@ -161,6 +197,16 @@ export function useEventsRealtime(params = {}) {
     [page, limit, status, date_from, date_to, has_photo, search],
   );
 
+  const cacheKey = useMemo(() => `events_cache:${paramsKey}`, [paramsKey]);
+
+  useEffect(() => {
+    const cached = readCache(cacheKey);
+    if (cached?.eventsData) {
+      setEventsData(cached.eventsData);
+      if (cached.stats) setStats(cached.stats);
+    }
+  }, [cacheKey]);
+
   // ── Fetch function ─────────────────────────────────────────────────────
   const fetchData = useCallback(
     async (showLoading = true) => {
@@ -183,30 +229,60 @@ export function useEventsRealtime(params = {}) {
       console.log("[EventsRT] Fetching with params:", queryEventsParams);
 
       try {
-        const [eventsResult, statsResult] = await Promise.all([
+        const [eventsResult, statsResult] = await Promise.allSettled([
           queryEvents(queryEventsParams),
           queryStats(date_from, date_to),
         ]);
 
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
 
-        console.log(
-          "[EventsRT] Fetched raw event data length:",
-          eventsResult?.data?.length,
-        );
-        setEventsData(eventsResult);
-        setStats(statsResult);
+        if (eventsResult.status === "fulfilled") {
+          console.log(
+            "[EventsRT] Fetched raw event data length:",
+            eventsResult.value?.data?.length,
+          );
+          setEventsData(eventsResult.value);
+        }
+
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        }
+
+        if (eventsResult.status === "fulfilled") {
+          writeCache(cacheKey, {
+            eventsData: eventsResult.value,
+            stats:
+              statsResult.status === "fulfilled" ? statsResult.value : stats,
+          });
+        }
       } catch (err) {
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
         console.error("[EventsRT] fetch error:", err);
         setError(err);
+        const cached = readCache(cacheKey);
+        if (cached?.eventsData) {
+          setEventsData((prev) => prev ?? cached.eventsData);
+          if (cached.stats) {
+            setStats((prev) => (prev?.total ? prev : cached.stats));
+          }
+        }
       } finally {
         if (mountedRef.current && fetchId === fetchCountRef.current) {
           setLoading(false);
         }
       }
     },
-    [paramsKey, page, limit, status, date_from, date_to, has_photo, search],
+    [
+      paramsKey,
+      page,
+      limit,
+      status,
+      date_from,
+      date_to,
+      has_photo,
+      search,
+      cacheKey,
+    ],
   );
 
   // ── Initial fetch + re-fetch on filter change ──────────────────────────
@@ -288,7 +364,16 @@ export function useEventsRealtime(params = {}) {
           ) {
             if (page === 1) {
               setEventsData((prev) => {
-                if (!prev) return prev;
+                if (!prev) {
+                  const seed = [newRow].slice(0, limit);
+                  return {
+                    data: seed,
+                    total: seed.length,
+                    page: 1,
+                    limit,
+                    totalPages: 1,
+                  };
+                }
                 const newData = [newRow, ...prev.data].slice(0, limit);
                 return {
                   ...prev,
@@ -310,7 +395,7 @@ export function useEventsRealtime(params = {}) {
       supabase.removeChannel(channel);
     };
     // Only re-subscribe when filters or pagination change
-  }, [paramsKey, page, limit, status, date_from, date_to, has_photo]);
+  }, [paramsKey]);
 
   // ── Return ─────────────────────────────────────────────────────────────
   return {
