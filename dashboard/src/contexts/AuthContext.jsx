@@ -239,7 +239,12 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn("[Auth] Global signOut failed, doing local:", err.message);
       try {
-        await supabase.auth.signOut({ scope: "local" });
+        await Promise.race([
+          supabase.auth.signOut({ scope: "local" }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("local signOut timeout")), 2000),
+          ),
+        ]);
       } catch {
         /* ignore */
       }
