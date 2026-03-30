@@ -72,7 +72,7 @@ async function queryEvents({
   };
 }
 
-async function queryStats(date_from, date_to, hasPhoto = false) {
+async function queryStats(date_from, date_to) {
   let queryAll = supabase
     .from("events")
     .select("*", { count: "exact", head: true });
@@ -87,11 +87,8 @@ async function queryStats(date_from, date_to, hasPhoto = false) {
     .select("*", { count: "exact", head: true })
     .in("status", ["valid", "compliant"]);
 
-  if (hasPhoto) {
-    queryAll = queryAll.not("photo_path", "is", null);
-    queryViolations = queryViolations.not("photo_path", "is", null);
-    queryValid = queryValid.not("photo_path", "is", null);
-  }
+  // NOTE: has_photo filter intentionally NOT applied on stats.
+  // Stats show totals for ALL events; the table list may show only photo events.
 
   if (date_from) {
     queryAll = queryAll.gte("timestamp", date_from);
@@ -110,7 +107,6 @@ async function queryStats(date_from, date_to, hasPhoto = false) {
     queryValid,
   ]);
 
-  // Throw first error encountered
   const firstError = allRes.error || violationRes.error || validRes.error;
   if (firstError) throw firstError;
 
@@ -173,28 +169,36 @@ export function useEventsRealtime(params = {}) {
       if (showLoading) setLoading(true);
       setError(null);
 
+      // Gunakan parameter terbaru dari state dependen, BUKAN dari closure mount pertama
+      const queryEventsParams = {
+        page,
+        limit,
+        status,
+        date_from,
+        date_to,
+        has_photo,
+        search,
+      };
+
+      console.log("[EventsRT] Fetching with params:", queryEventsParams);
+
       try {
         const [eventsResult, statsResult] = await Promise.all([
-          queryEvents({
-            page,
-            limit,
-            status,
-            date_from,
-            date_to,
-            has_photo,
-            search,
-          }),
-          queryStats(date_from, date_to, !!has_photo),
+          queryEvents(queryEventsParams),
+          queryStats(date_from, date_to),
         ]);
 
-        // Only apply if this is still the latest fetch (prevents race conditions)
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
 
+        console.log(
+          "[EventsRT] Fetched raw event data length:",
+          eventsResult?.data?.length,
+        );
         setEventsData(eventsResult);
         setStats(statsResult);
       } catch (err) {
         if (!mountedRef.current || fetchId !== fetchCountRef.current) return;
-        console.error("[EventsRT] Fetch error:", err.message);
+        console.error("[EventsRT] fetch error:", err);
         setError(err);
       } finally {
         if (mountedRef.current && fetchId === fetchCountRef.current) {
@@ -202,7 +206,7 @@ export function useEventsRealtime(params = {}) {
         }
       }
     },
-    [page, limit, status, date_from, date_to, has_photo, search],
+    [paramsKey, page, limit, status, date_from, date_to, has_photo, search],
   );
 
   // ── Initial fetch + re-fetch on filter change ──────────────────────────

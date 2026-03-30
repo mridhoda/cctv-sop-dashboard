@@ -50,11 +50,18 @@ function calcDelta(todayVal, yesterdayVal) {
 
 async function fetchDailyCounts(metric, days) {
   const queries = days.map((day) => {
+    // Build proper Date objects so toISOString() gives correct UTC timestamps
+    // This avoids the timezone bug where bare "YYYY-MM-DDT00:00:00" strings
+    // are interpreted as UTC by Postgres, cutting off local-time data.
+    const [y, mo, d] = day.split("-").map(Number);
+    const start = new Date(y, mo - 1, d, 0, 0, 0, 0).toISOString();
+    const end = new Date(y, mo - 1, d, 23, 59, 59, 999).toISOString();
+
     let q = supabase
       .from("events")
       .select("*", { count: "exact", head: true })
-      .gte("timestamp", `${day}T00:00:00`)
-      .lte("timestamp", `${day}T23:59:59`);
+      .gte("timestamp", start)
+      .lte("timestamp", end);
 
     if (metric === "violation") q = q.eq("status", "violation");
     if (metric === "valid") q = q.eq("status", "valid");
