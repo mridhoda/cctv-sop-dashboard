@@ -1,4 +1,89 @@
 import { supabase } from "../lib/supabase";
+import { getApiBaseUrl } from "../utils/url";
+
+const REQUEST_TIMEOUT_MS = 10_000;
+
+async function getAccessToken() {
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  return session?.access_token || null;
+}
+
+async function fetchJsonWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+        ...(options.headers || {}),
+      },
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const err = new Error(payload?.message || `HTTP ${response.status}`);
+      err.status = response.status;
+      err.payload = payload;
+      throw err;
+    }
+
+    return payload;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function buildQuery(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  return query.toString();
+}
+
+export async function fetchEventsFeedFromBackend(params = {}) {
+  const apiBase = getApiBaseUrl();
+  const accessToken = await getAccessToken();
+
+  if (!apiBase || !accessToken) {
+    const err = new Error("Backend event feed unavailable");
+    err.code = "BACKEND_FEED_UNAVAILABLE";
+    throw err;
+  }
+
+  const query = buildQuery(params);
+  const url = `${apiBase}/api/events/feed${query ? `?${query}` : ""}`;
+
+  return fetchJsonWithTimeout(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function fetchEventStatsFromBackend(params = {}) {
+  const apiBase = getApiBaseUrl();
+  const accessToken = await getAccessToken();
+
+  if (!apiBase || !accessToken) {
+    const err = new Error("Backend event stats unavailable");
+    err.code = "BACKEND_STATS_UNAVAILABLE";
+    throw err;
+  }
+
+  const query = buildQuery(params);
+  const url = `${apiBase}/api/events/stats${query ? `?${query}` : ""}`;
+
+  return fetchJsonWithTimeout(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
 
 /**
  * Fetch paginated events with filtering.

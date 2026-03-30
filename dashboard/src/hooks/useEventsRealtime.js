@@ -13,6 +13,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { createTimer, reportDataAccess } from "../utils/dataAccessTelemetry";
+import {
+  fetchEventStatsFromBackend,
+  fetchEventsFeedFromBackend,
+} from "../services/events";
 import { withTimeout } from "../utils/withTimeout";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -84,6 +88,36 @@ async function queryEvents({
   search,
   view = "history",
 }) {
+  try {
+    const backendResult = await fetchEventsFeedFromBackend({
+      page,
+      limit,
+      status,
+      date_from,
+      date_to,
+      has_photo,
+      search,
+      view,
+    });
+
+    if (backendResult?.data) {
+      return {
+        data: backendResult.data,
+        total: backendResult.total || backendResult.data.length,
+        page: backendResult.page || page,
+        limit: backendResult.limit || limit,
+        totalPages: backendResult.totalPages || 1,
+        hasMore: Boolean(backendResult.hasMore),
+      };
+    }
+  } catch (error) {
+    reportDataAccess("events.backend.feed.fallback", {
+      level: "warn",
+      scope: view,
+      error,
+    });
+  }
+
   const start = (page - 1) * limit;
   const end = start + limit;
 
@@ -124,6 +158,25 @@ async function queryEvents({
 }
 
 async function queryStats(date_from, date_to) {
+  try {
+    const backendResult = await fetchEventStatsFromBackend({
+      date_from,
+      date_to,
+    });
+
+    return {
+      total: backendResult?.total || 0,
+      violations: backendResult?.violations || 0,
+      valid: backendResult?.valid || 0,
+    };
+  } catch (error) {
+    reportDataAccess("events.backend.stats.fallback", {
+      level: "warn",
+      scope: "stats",
+      error,
+    });
+  }
+
   let queryAll = supabase
     .from("events")
     .select("*", { count: "estimated", head: true });
