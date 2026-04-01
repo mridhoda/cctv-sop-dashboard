@@ -196,6 +196,9 @@ async function fetchRecentIncidents(limit = 5) {
 }
 
 async function fetchCameraStatus() {
+  const stopTimer = createTimer();
+  reportDataAccess("dashboard.cameraStatus.start", {});
+
   const { data, error } = await withTimeout(
     supabase
       .from("cameras")
@@ -205,7 +208,20 @@ async function fetchCameraStatus() {
     "dashboard camera status",
   );
 
-  if (error) throw error;
+  if (error) {
+    reportDataAccess("dashboard.cameraStatus.error", {
+      durationMs: stopTimer(),
+      level: "error",
+      error: error?.message,
+    });
+    throw error;
+  }
+
+  reportDataAccess("dashboard.cameraStatus.success", {
+    durationMs: stopTimer(),
+    count: data?.length || 0,
+  });
+
   return data || [];
 }
 

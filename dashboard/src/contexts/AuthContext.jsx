@@ -8,6 +8,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { fetchProfile } from "../services/auth";
 import { isFaceRecognitionEnabled } from "../hooks/useFaceRecognition";
+import { createTimer, reportDataAccess } from "../utils/dataAccessTelemetry";
 
 const AuthContext = createContext(null);
 
@@ -91,6 +92,21 @@ const ROLE_PERMISSIONS = {
   viewer: ["monitoring", "profile"],
 };
 
+function getRuntimeContext() {
+  return {
+    online: typeof navigator === "undefined" ? null : navigator.onLine,
+    visibility:
+      typeof document === "undefined" ? null : document.visibilityState,
+  };
+}
+
+function traceAuth(eventName, payload = {}) {
+  reportDataAccess(`auth:${eventName}`, {
+    ...getRuntimeContext(),
+    ...payload,
+  });
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -104,16 +120,31 @@ export function AuthProvider({ children }) {
       clearProfileCache();
       return null;
     }
+
+    const stopTimer = createTimer();
+    traceAuth("loadProfile:start", { userId: authUser.id });
+
     try {
       const data = await fetchProfile(authUser.id);
       setProfile(data);
       saveProfileCache(data); // ← persist for instant load on next visit
+      traceAuth("loadProfile:success", {
+        userId: authUser.id,
+        durationMs: stopTimer(),
+        usedCache: false,
+      });
       return data;
     } catch (err) {
       // PGRST116: .single() got 0 rows — safe to ignore, happens on logout race
       if (err?.code === "PGRST116" || err?.message?.includes("PGRST116")) {
         setProfile(null);
         clearProfileCache();
+        traceAuth("loadProfile:empty", {
+          userId: authUser.id,
+          durationMs: stopTimer(),
+          level: "warn",
+          error: err?.message,
+        });
         return null;
       }
       // Network/other error — use cached profile if available
@@ -121,9 +152,23 @@ export function AuthProvider({ children }) {
       if (cached?.id === authUser.id) {
         console.warn("[Auth] Profile fetch failed, using cache:", err.message);
         setProfile(cached);
+        traceAuth("loadProfile:cache_fallback", {
+          userId: authUser.id,
+          durationMs: stopTimer(),
+          level: "warn",
+          error: err?.message,
+          usedCache: true,
+        });
         return cached;
       }
       console.warn("[Auth] Profile fetch failed (no cache):", err.message);
+      traceAuth("loadProfile:error", {
+        userId: authUser.id,
+        durationMs: stopTimer(),
+        level: "error",
+        error: err?.message,
+        usedCache: false,
+      });
       return null;
     }
   }, []);
@@ -132,102 +177,107 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    const init = async () => {
-      // Step 1: Show cached profile immediately — UI appears without any wait
-      const cached = getProfileCache();
-      if (cached) {
-        setProfile(cached);
-        setLoading(false); // ← user sees dashboard instantly
-      }
+    const cached = getProfileCache();
+    traceAuth("init:start", {
+      hasCachedProfile: Boolean(cached),
+      cachedProfileId: cached?.id || null,
+    });
 
-      // Step 2: Validate session in background (with 5s timeout guard)
-      try {
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("getSession timeout")), 5000),
-          ),
-        ]);
+    if (cached) {
+      setProfile(cached);
+      setLoading(false);
+    }
 
-        if (!mounted) return;
-
-        const { data: { session } = {}, error } = sessionResult;
-
-        if (error) {
-          // Hard auth failures: clear session explicitly
-          if (
-            error?.message?.includes("Refresh Token") ||
-            error?.status === 400
-          ) {
-            await supabase.auth.signOut().catch(() => {});
-            setUser(null);
-            setProfile(null);
-            clearProfileCache();
-          } else {
-            // Transient/network auth error: keep cached UI state
-            console.warn(
-              "[Auth] getSession returned transient error, keeping cache:",
-              error.message,
-            );
-          }
-        } else if (!session?.user) {
-          // No valid session
-          setUser(null);
-          setProfile(null);
-          clearProfileCache();
-        } else {
-          setUser(session.user);
-          // Only fetch from DB if cache is empty or belongs to a different user
-          if (!cached || cached.id !== session.user.id) {
-            await loadProfile(session.user);
-          }
-        }
-      } catch (err) {
-        console.warn("[Auth] Session init error:", err.message);
-        // On timeout/network jitter, keep cached profile to avoid false logout.
-        // A later auth event or manual refresh will reconcile state.
-        if (err.message === "getSession timeout") {
-          console.warn(
-            "[Auth] getSession timeout, preserving cached profile state",
-          );
-        }
-      } finally {
-        // Always resolve loading — React 18 ignores state updates on unmounted
-        // components safely, and StrictMode remounts need this to complete.
-        setLoading(false);
-      }
-    };
-
-    init();
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const applySession = async (event, session) => {
       if (!mounted) return;
+
+      traceAuth("authStateChange", {
+        event,
+        hasSessionUser: Boolean(session?.user),
+        sessionUserId: session?.user?.id || null,
+      });
 
       if (event === "SIGNED_OUT") {
         void clearClientCache();
         setUser(null);
         setProfile(null);
+        setLoading(false);
         return;
       }
 
-      // Avoid hard logout on transient auth event jitter.
-      // We only hard-clear on explicit SIGNED_OUT above.
       if (!session?.user) {
+        if (event === "INITIAL_SESSION" || event === "BOOTSTRAP_SESSION") {
+          setUser(null);
+          setProfile(null);
+          clearProfileCache();
+          setLoading(false);
+          return;
+        }
+
         console.warn(
           `[Auth] Ignoring transient auth event without session: ${event}`,
         );
+        setLoading(false);
         return;
       }
 
       setUser(session.user);
-      // TOKEN_REFRESHED fires every hour — skip DB fetch, use existing state
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        await loadProfile(session.user);
+
+      const sameUserCache = cached?.id === session.user.id ? cached : null;
+      if (sameUserCache) {
+        setProfile(sameUserCache);
       }
+
+      try {
+        if (
+          !sameUserCache ||
+          event === "SIGNED_IN" ||
+          event === "USER_UPDATED"
+        ) {
+          await loadProfile(session.user);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // Listen for auth state changes first, so INITIAL_SESSION can hydrate us.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      void applySession(event, session);
     });
+
+    // Non-blocking bootstrap: helpful when INITIAL_SESSION is delayed.
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session } = {}, error }) => {
+        traceAuth("bootstrapSession:result", {
+          hasSessionUser: Boolean(session?.user),
+          sessionUserId: session?.user?.id || null,
+          authError: error?.message || null,
+          level: error ? "warn" : undefined,
+        });
+
+        if (
+          error?.message?.includes("Refresh Token") ||
+          error?.status === 400
+        ) {
+          void supabase.auth.signOut().catch(() => {});
+          return;
+        }
+
+        return applySession("BOOTSTRAP_SESSION", session);
+      })
+      .catch((error) => {
+        traceAuth("bootstrapSession:error", {
+          level: "warn",
+          error: error?.message,
+        });
+        if (mounted) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       mounted = false;
@@ -243,6 +293,9 @@ export function AuthProvider({ children }) {
   const login = useCallback(
     async ({ email, password }) => {
       setLoading(true);
+      const stopTimer = createTimer();
+      traceAuth("login:start");
+
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -250,9 +303,21 @@ export function AuthProvider({ children }) {
         });
         if (error) throw error;
 
+        traceAuth("login:success", {
+          durationMs: stopTimer(),
+          userId: data.user?.id || null,
+        });
+
         setUser(data.user);
         const prof = await loadProfile(data.user);
         return prof;
+      } catch (error) {
+        traceAuth("login:error", {
+          durationMs: stopTimer(),
+          level: "error",
+          error: error?.message,
+        });
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -291,25 +356,36 @@ export function AuthProvider({ children }) {
    * Get the merged user object (auth user + profile data).
    * This is what pages receive as "user".
    */
+  const fallbackProfile =
+    user && !profile
+      ? (() => {
+          const cached = getProfileCache();
+          return cached?.id === user.id ? cached : null;
+        })()
+      : null;
+
+  const resolvedProfile = profile || fallbackProfile;
+
   const currentUser = user
     ? {
-        id: profile?.id || user.id,
+        id: resolvedProfile?.id || user.id,
         email: user.email,
-        username: profile?.username || profile?.email || user.email,
+        username:
+          resolvedProfile?.username || resolvedProfile?.email || user.email,
         name:
-          profile?.name ||
-          profile?.username ||
+          resolvedProfile?.name ||
+          resolvedProfile?.username ||
           user.email?.split("@")[0] ||
           "User",
-        role: profile?.role || null,
-        _profileError: profile?._profileError || false,
-        role_label: profile?.role_label,
-        tenant_id: profile?.tenant_id || null,
-        avatar_url: profile?.avatar_url,
-        phone: profile?.phone,
-        is_active: profile?.is_active,
-        last_login: profile?.last_login,
-        created_at: profile?.created_at || user.created_at,
+        role: resolvedProfile?.role || null,
+        _profileError: resolvedProfile?._profileError || false,
+        role_label: resolvedProfile?.role_label,
+        tenant_id: resolvedProfile?.tenant_id || null,
+        avatar_url: resolvedProfile?.avatar_url,
+        phone: resolvedProfile?.phone,
+        is_active: resolvedProfile?.is_active,
+        last_login: resolvedProfile?.last_login,
+        created_at: resolvedProfile?.created_at || user.created_at,
       }
     : null;
 
