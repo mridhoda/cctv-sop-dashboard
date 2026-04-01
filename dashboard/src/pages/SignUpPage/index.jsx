@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import Step1PersonalData from "./Step1PersonalData";
 import Step2CompanyData from "./Step2CompanyData";
 import Step2InviteCode from "./Step2InviteCode";
@@ -8,8 +9,9 @@ import { signUp } from "../../services/auth";
 import { useAuth } from "../../contexts/AuthContext";
 import Badge from "../../components/ui/Badge";
 
-export default function SignUpPage({ onSwitchView }) {
+export default function SignUpPage() {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [signupMode, setSignupMode] = useState(null); // 'owner' | 'member'
   const [personalData, setPersonalData] = useState({});
@@ -20,9 +22,9 @@ export default function SignUpPage({ onSwitchView }) {
   // Redirect if already logged in (handled by App.jsx, but double check)
   useEffect(() => {
     if (user && !authLoading) {
-      // User will be redirected by App.jsx automatically
+      navigate("/dashboard", { replace: true });
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, navigate]);
 
   const handleStep1Complete = (data) => {
     setPersonalData(data);
@@ -207,7 +209,7 @@ export default function SignUpPage({ onSwitchView }) {
             {/* Back to Login (Only on Step 1) */}
             {currentStep === 1 && (
               <button
-                onClick={() => onSwitchView("login")}
+                onClick={() => navigate("/login")}
                 className="flex items-center gap-2 text-slate-500 hover:text-slate-900 mb-6 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -275,13 +277,12 @@ export default function SignUpPage({ onSwitchView }) {
             <div className="bg-slate-50 p-6 text-center border-t border-slate-200">
               <p className="text-sm text-slate-500">
                 Sudah punya akun?{" "}
-                <button
-                  type="button"
-                  onClick={() => onSwitchView("login")}
+                <Link
+                  to="/login"
                   className="font-bold text-slate-900 transition hover:underline"
                 >
                   Masuk di sini
-                </button>
+                </Link>
               </p>
             </div>
           )}

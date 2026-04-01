@@ -32,7 +32,8 @@ cctv-sop/master-plan/
 │
 └── cross-functional/                  ← 🔗 Integration & Analysis
     ├── 02_feature_coverage_analysis.md
-    └── ENVIRONMENT_SETUP.md               ← 📍 NEW: Env vars & credentials guide
+    ├── ENVIRONMENT_SETUP.md               ← 📍 NEW: Env vars & credentials guide
+    └── 2026-03-30_TIMEOUT_STABILITY_IMPLEMENTATION_UPDATE.md
 ```
 
 ---
@@ -97,11 +98,11 @@ Master Plan ini dibuat untuk:
 ## 📊 Quick Stats
 
 ```
-Total Plans: 14 documents
+Total Plans: 15 documents
 ├── Database: 6 docs (DDL, RLS, Migration guides + Live state reference)
 ├── Backend: 3 docs (Architecture + Supabase integration)
 ├── Frontend: 3 docs (Implementation + Supabase integration + Feature rules)
-└── Cross-functional: 2 docs (Gap analysis + Environment setup)
+└── Cross-functional: 3 docs (Gap analysis + environment + timeout stability update)
 
 Coverage:
 ├── Database Design: 100% ✅ (deployed to Supabase)

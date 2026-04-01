@@ -173,13 +173,13 @@ export default function Identities() {
           </p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => (window.location.href = "/settings")}
+              onClick={() => (window.location.href = "/dashboard/settings")}
               className="px-4 py-2 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition"
             >
               Ke Pengaturan
             </button>
             <button
-              onClick={() => (window.location.href = "/")}
+              onClick={() => (window.location.href = "/dashboard")}
               className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition"
             >
               Kembali ke Dashboard

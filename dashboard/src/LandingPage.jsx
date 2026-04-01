@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ShieldAlert,
   EyeOff,
@@ -869,8 +870,6 @@ const CTASection = ({ onEnterApp }) => {
     setStatus("success");
     setEmail("");
     setTimeout(() => setStatus("idle"), 5000);
-    // Optionally trigger entry to app directly for demo
-    if (onEnterApp) onEnterApp();
   };
 
   return (
@@ -1063,12 +1062,15 @@ const Footer = () => (
   </footer>
 );
 
-export default function LandingPage({ onEnterApp }) {
+export default function LandingPage() {
+  const navigate = useNavigate();
+  const handleEnterApp = () => navigate("/login");
+
   return (
     <div className="font-sans text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900 scroll-smooth">
-      <Navbar onEnterApp={onEnterApp} />
+      <Navbar onEnterApp={handleEnterApp} />
       <main>
-        <Hero onEnterApp={onEnterApp} />
+        <Hero onEnterApp={handleEnterApp} />
         <ProblemSection />
         <SolutionSection />
         <HowItWorks />
@@ -1077,7 +1079,7 @@ export default function LandingPage({ onEnterApp }) {
         <Testimonials />
         <Pricing />
         <FAQ />
-        <CTASection onEnterApp={onEnterApp} />
+        <CTASection onEnterApp={handleEnterApp} />
       </main>
       <Footer />
     </div>

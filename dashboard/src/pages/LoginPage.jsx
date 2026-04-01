@@ -14,6 +14,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Link, useNavigate } from "react-router-dom";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { useAuth } from "../contexts/AuthContext";
@@ -27,9 +28,10 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password wajib diisi"),
 });
 
-export default function LoginPage({ onSwitchView }) {
+export default function LoginPage() {
   const { login } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -67,6 +69,7 @@ export default function LoginPage({ onSwitchView }) {
       }
 
       addToast({ type: "success", message: "Login berhasil! Selamat datang." });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       addToast({
         type: "error",
@@ -88,7 +91,10 @@ export default function LoginPage({ onSwitchView }) {
       <div className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col lg:justify-between lg:p-12">
         {/* Logo */}
         <div>
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
+          >
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-emerald-400">
               <Shield className="h-5 w-5" />
             </div>
@@ -100,7 +106,7 @@ export default function LoginPage({ onSwitchView }) {
                 Foodinesia CCTV-SOP Dashboard
               </p>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Feature highlights */}
@@ -149,7 +155,10 @@ export default function LoginPage({ onSwitchView }) {
         >
           <div className="mb-8">
             {/* Mobile logo */}
-            <div className="mb-6 flex items-center gap-3 lg:hidden">
+            <Link
+              to="/"
+              className="mb-6 flex items-center gap-3 rounded-2xl transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
+            >
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-900 text-emerald-400">
                 <Shield className="h-5 w-5" />
               </div>
@@ -157,7 +166,7 @@ export default function LoginPage({ onSwitchView }) {
                 <p className="font-semibold text-slate-900">VisionGuard AI</p>
                 <p className="text-xs text-slate-500">CCTV-SOP Dashboard</p>
               </div>
-            </div>
+            </Link>
 
             <Badge tone="slate">Secure Access</Badge>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
@@ -234,13 +243,12 @@ export default function LoginPage({ onSwitchView }) {
                 </span>
               </label>
 
-              <button
-                type="button"
-                onClick={() => onSwitchView?.("forgot_password")}
+              <Link
+                to="/forgot-password"
                 className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
               >
                 Lupa password?
-              </button>
+              </Link>
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full">
@@ -253,13 +261,12 @@ export default function LoginPage({ onSwitchView }) {
           <div className="mt-8 text-center text-sm">
             <p className="text-slate-500">
               Belum punya akun?{" "}
-              <button
-                type="button"
-                onClick={() => onSwitchView?.("signup")}
+              <Link
+                to="/signup"
                 className="font-bold text-slate-900 transition hover:underline"
               >
                 Daftar di sini
-              </button>
+              </Link>
             </p>
           </div>
 

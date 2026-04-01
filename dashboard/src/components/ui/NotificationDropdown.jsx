@@ -6,6 +6,7 @@ import {
   CameraOff,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useNotificationContext } from "../../contexts/NotificationContext";
 
 // ── Severity config ────────────────────────────────────────────────────────
@@ -94,9 +95,9 @@ function NotifItem({ notif, onRead }) {
  * Notification dropdown panel.
  *
  * @param {boolean} isOpen - controlled by parent (Bell button toggle)
- * @param {function} onNavigate - called with tab name when user clicks a violation (e.g. "history")
  */
-export default function NotificationDropdown({ isOpen, onNavigate }) {
+export default function NotificationDropdown({ isOpen }) {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -116,8 +117,8 @@ export default function NotificationDropdown({ isOpen, onNavigate }) {
   const handleRead = (id) => {
     markAsRead(id);
     const notif = notifications.find((n) => n.id === id);
-    if (notif?.type === "violation" && onNavigate) {
-      onNavigate("history");
+    if (notif?.type === "violation") {
+      navigate("/dashboard/history");
     }
   };
 
@@ -164,10 +165,10 @@ export default function NotificationDropdown({ isOpen, onNavigate }) {
       </div>
 
       {/* Footer */}
-      {enriched.length > 0 && onNavigate && (
+      {enriched.length > 0 && (
         <div className="border-t border-slate-100 px-4 py-2.5 bg-slate-50/50">
           <button
-            onClick={() => onNavigate("history")}
+            onClick={() => navigate("/dashboard/history")}
             className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
           >
             Lihat semua riwayat insiden →

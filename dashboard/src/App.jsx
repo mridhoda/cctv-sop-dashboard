@@ -1,56 +1,70 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Video,
   AlertTriangle,
-  CheckCircle,
-  User,
-  LogOut,
   Bell,
-  Search,
+  Camera,
   ChevronDown,
   ChevronRight,
   Clock,
-  MapPin,
-  ShieldCheck,
-  X,
-  Activity,
-  Filter,
-  Download,
-  Maximize2,
-  Users,
   FileText,
-  History,
-  Settings as SettingsIcon,
-  Monitor,
-  Camera,
-  Loader2,
-  Siren,
-  Shield,
-  Menu,
   Gauge,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Menu,
+  Monitor,
+  Settings as SettingsIcon,
+  Shield,
+  ShieldCheck,
+  Siren,
+  User,
+  Users,
+  Video,
+  X,
 } from "lucide-react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import Card from "./components/ui/Card";
 import MetricCard from "./components/ui/MetricCard";
-import Tabs from "./components/ui/Tabs";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastProvider, useToast } from "./components/ui/Toast";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
-import { NotificationProvider } from "./contexts/NotificationContext";
-import { useNotificationContext } from "./contexts/NotificationContext";
+import {
+  NotificationProvider,
+  useNotificationContext,
+} from "./contexts/NotificationContext";
 import NotificationDropdown from "./components/ui/NotificationDropdown";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { useDashboardRealtime } from "./hooks/useDashboardRealtime";
 import { useFaceRecognition } from "./hooks/useFaceRecognition";
 import { useRealtimeEvents } from "./hooks/useRealtimeEvents";
 import RefreshButton from "./components/ui/RefreshButton";
-
 import LandingPage from "./LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import Monitoring from "./pages/Monitoring";
+import HistoryPage from "./pages/History";
+import Identities from "./pages/Identities";
+import Reports from "./pages/Reports";
+import SettingsPage from "./pages/Settings";
+import CameraManagementPage from "./pages/CameraManagementPage";
+import ProfilePage from "./pages/ProfilePage";
+import {
+  getDashboardPath,
+  getDefaultDashboardPath,
+} from "./utils/dashboardRoutes";
+
 const ErrorMessage = ({ error, onRetry }) => (
   <div className="p-8 text-center">
     <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 max-w-md mx-auto">
@@ -71,16 +85,60 @@ const ErrorMessage = ({ error, onRetry }) => (
   </div>
 );
 
-import Monitoring from "./pages/Monitoring";
-import HistoryPage from "./pages/History";
-import Identities from "./pages/Identities";
-import Reports from "./pages/Reports";
-import SettingsPage from "./pages/Settings";
-import CameraManagementPage from "./pages/CameraManagementPage";
-import ProfilePage from "./pages/ProfilePage";
+function FullScreenLoading({ message = "Memverifikasi sesi..." }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <LoadingSpinner message={message} />
+    </div>
+  );
+}
 
-// ─── Dashboard Home Tab ─────────────────────────────────────
-function DashboardHomeTab({ onTabChange, hasPermission }) {
+function PublicOnlyRoute({ children }) {
+  const { user, loading, getAllowedTabs } = useAuth();
+
+  if (loading) {
+    return <FullScreenLoading />;
+  }
+
+  if (user) {
+    return <Navigate to={getDefaultDashboardPath(getAllowedTabs())} replace />;
+  }
+
+  return children;
+}
+
+function LandingOrLoginRedirect() {
+  const { user, loading, getAllowedTabs } = useAuth();
+
+  if (loading) {
+    return <FullScreenLoading />;
+  }
+
+  if (user) {
+    return <Navigate to={getDefaultDashboardPath(getAllowedTabs())} replace />;
+  }
+
+  return <LandingPage />;
+}
+
+function NotFoundRedirect() {
+  const { user, loading, getAllowedTabs } = useAuth();
+
+  if (loading) {
+    return <FullScreenLoading />;
+  }
+
+  return (
+    <Navigate
+      to={user ? getDefaultDashboardPath(getAllowedTabs()) : "/"}
+      replace
+    />
+  );
+}
+
+function DashboardHomeTab() {
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const {
     summary: summaryData,
     incidents: incidentsData,
@@ -93,12 +151,10 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
   const [selectedIncident, setSelectedIncident] = useState(null);
 
-  // Extract data from API responses, falling back gracefully
   const summary = summaryData || {};
   const incidents = Array.isArray(incidentsData) ? incidentsData : [];
   const cameras = Array.isArray(camerasData) ? camerasData : [];
 
-  // Build metrics from summary or use defaults
   const totalDetections =
     summary.total_detections ?? summary.totalDetections ?? "—";
   const totalIncidents =
@@ -117,7 +173,6 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
     { name: "Tidak Patuh", value: nonComplianceVal, color: "#EF4444" },
   ];
 
-  // Real spark series + labels from API (fall back to empty if loading/missing)
   const sparkTotal = summary.spark_total ?? [];
   const sparkViolations = summary.spark_violations ?? [];
   const sparkCompliance = summary.spark_compliance ?? [];
@@ -127,7 +182,20 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
   const deltaViolations = summary.delta_violations ?? "...";
   const deltaCompliance = summary.delta_compliance ?? "...";
 
-  // Only block on the primary summary query — incidents & cameras render progressively
+  const getRawDetectionId = (incident) =>
+    incident?.detection_id ||
+    incident?.detectionId ||
+    incident?.event_id ||
+    incident?.id ||
+    "—";
+
+  // Show only the first 8 chars so the UUID doesn't wrap across lines
+  const formatDetectionId = (incident) => {
+    const full = getRawDetectionId(incident);
+    if (full === "—") return "—";
+    return String(full).slice(0, 8).toUpperCase();
+  };
+
   if (summaryLoading) {
     return <LoadingSpinner message="Memuat dashboard..." />;
   }
@@ -162,7 +230,6 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
         </div>
       </div>
 
-      {/* Top Row: Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           item={{
@@ -208,15 +275,13 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
         />
       </div>
 
-      {/* Middle Row: Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.9fr] gap-6">
-        {/* Recent Incidents Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.36fr_0.84fr] gap-5">
         <Card
-          title="Daftar Insiden Terbaru"
+          title="Daftar Insiden Pelanggaran Terbaru"
           right={
             hasPermission("history") && (
               <button
-                onClick={() => onTabChange("history")}
+                onClick={() => navigate(getDashboardPath("history"))}
                 className="text-sm text-slate-600 hover:text-slate-900 font-medium underline"
               >
                 Lihat Semua
@@ -226,50 +291,80 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
           className="flex flex-col overflow-hidden"
           animate={false}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div className="overflow-x-hidden">
+            <table className="w-full table-auto text-left">
               <thead>
-                <tr className="text-slate-500 text-[11px] uppercase tracking-[0.14em]">
-                  <th className="px-4 py-3 font-semibold">Waktu</th>
+                <tr className="text-slate-500 text-[10px] uppercase tracking-[0.14em]">
+                  <th className="px-2.5 py-3 font-semibold whitespace-nowrap">
+                    No
+                  </th>
+                  <th className="px-2.5 py-3 font-semibold whitespace-nowrap">
+                    Detection ID
+                  </th>
+                  <th className="px-2.5 py-3 font-semibold whitespace-nowrap">
+                    Waktu
+                  </th>
+                  <th className="w-full px-2.5 py-3 font-semibold">Lokasi</th>
                   {faceRecognitionEnabled && (
-                    <th className="px-4 py-3 font-semibold">Nama</th>
+                    <th className="px-2.5 py-3 font-semibold whitespace-nowrap">
+                      Nama
+                    </th>
                   )}
-                  <th className="px-4 py-3 font-semibold">Lokasi</th>
-                  <th className="px-4 py-3 font-semibold">Jenis</th>
-                  <th className="px-4 py-3 font-semibold text-center">Aksi</th>
+                  <th className="px-2.5 py-3 font-semibold whitespace-nowrap">
+                    Jenis
+                  </th>
+                  <th className="px-2.5 py-3 font-semibold text-center whitespace-nowrap">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {incidents.length > 0 ? (
-                  incidents.map((item) => (
+                  incidents.map((item, index) => (
                     <tr
                       key={item.id}
                       className="hover:bg-slate-50 cursor-pointer transition"
                       onClick={() => setSelectedIncident(item)}
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                      <td className="px-2.5 py-3 text-sm font-semibold text-slate-700">
+                        {index + 1}
+                      </td>
+                      <td
+                        className="px-2.5 py-3 text-[11px] font-mono text-slate-500 whitespace-nowrap"
+                        title={getRawDetectionId(item)}
+                      >
+                        {formatDetectionId(item)}
+                      </td>
+                      <td className="px-2.5 py-3 text-sm font-medium text-slate-700 whitespace-nowrap">
                         {item.time || item.timestamp || "—"}
                       </td>
+                      <td className="px-2.5 py-3 text-sm text-slate-600 max-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin
+                            size={13}
+                            className="shrink-0 text-slate-400"
+                          />
+                          <span className="truncate">
+                            {item.location || item.camera_name || "—"}
+                          </span>
+                        </div>
+                      </td>
                       {faceRecognitionEnabled && (
-                        <td className="px-6 py-4 text-sm text-slate-700">
+                        <td className="px-2.5 py-3 text-sm text-slate-700 whitespace-nowrap">
                           {item.staff_name ||
                             item.person_name ||
                             item.identity_name ||
                             "—"}
                         </td>
                       )}
-                      <td className="px-6 py-4 text-sm text-slate-600 flex items-center gap-2">
-                        <MapPin size={14} />{" "}
-                        {item.location || item.camera_name || "—"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="bg-rose-100 text-rose-700 text-xs px-2.5 py-1 rounded-full font-semibold">
+                      <td className="px-2.5 py-3">
+                        <span className="inline-flex whitespace-nowrap bg-rose-100 text-rose-700 text-[11px] px-2 py-1 rounded-full font-semibold">
                           {item.type || item.event_type || item.name || "—"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-2.5 py-3 text-center">
                         <button className="text-slate-400 hover:text-slate-900">
-                          <ChevronRight size={18} />
+                          <ChevronRight size={16} />
                         </button>
                       </td>
                     </tr>
@@ -277,7 +372,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={faceRecognitionEnabled ? 5 : 4}
+                      colSpan={faceRecognitionEnabled ? 7 : 6}
                       className="px-6 py-8 text-center text-slate-400 text-sm"
                     >
                       Tidak ada insiden terbaru
@@ -289,7 +384,6 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
           </div>
         </Card>
 
-        {/* Pie Chart Summary */}
         <Card
           title="Persentase Kepatuhan"
           className="flex flex-col"
@@ -323,7 +417,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.color }}
-                    ></div>
+                    />
                     <span className="text-sm font-medium text-slate-700">
                       {item.name}
                     </span>
@@ -336,7 +430,6 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
         </Card>
       </div>
 
-      {/* Bottom Row: CCTV Status */}
       <Card title="Status CCTV & AI Deteksi" className="p-6" animate={false}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {cameras.length > 0 ? (
@@ -346,6 +439,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
                 cam.status === "online" ||
                 cam.status === "active" ||
                 cam.is_active;
+
               return (
                 <div
                   key={cam.id}
@@ -354,7 +448,7 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-2 h-2 rounded-full animate-pulse ${isOnline ? "bg-emerald-500" : "bg-slate-300"}`}
-                    ></div>
+                    />
                     <span className="text-sm font-semibold text-slate-700">
                       {cam.name || cam.camera_name}
                     </span>
@@ -375,7 +469,6 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
         </div>
       </Card>
 
-      {/* Modal: Incident Detail */}
       {selectedIncident && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -481,56 +574,62 @@ function DashboardHomeTab({ onTabChange, hasPermission }) {
   );
 }
 
-// ─── Dashboard Shell ────────────────────────────────────────
+function SidebarNavLink({ to, icon: Icon, children, end = false, onClick }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClick}
+      className={({ isActive }) =>
+        `flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${isActive ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`
+      }
+    >
+      <Icon size={20} className="shrink-0" />
+      <span className="truncate">{children}</span>
+    </NavLink>
+  );
+}
+
 function DashboardShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, hasPermission, getAllowedTabs } = useAuth();
   const { addToast } = useToast();
   const { unreadCount } = useNotificationContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Subscribe to Supabase Realtime events (background)
-  useRealtimeEvents();
-
-  const allowedTabs = getAllowedTabs();
-  const [activeTab, setActiveTab] = useState(allowedTabs[0] || "home");
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setIsMobileMenuOpen(false);
-  };
-
-  // Guard: redirect to first allowed tab if current is not allowed
-  useEffect(() => {
-    if (!allowedTabs.includes(activeTab)) {
-      setActiveTab(allowedTabs[0] || "home");
-    }
-  }, [allowedTabs, activeTab]);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      addToast({ type: "info", message: "Anda telah keluar" });
-    } catch {
-      // logout always clears local state
-    }
-  };
-
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-  // Close dropdowns on outside click
+  useRealtimeEvents();
+  getAllowedTabs();
+
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (!e.target.closest("[data-dropdown]")) {
+    setIsMobileMenuOpen(false);
+    setShowNotifDropdown(false);
+    setShowUserDropdown(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest("[data-dropdown]")) {
         setShowNotifDropdown(false);
         setShowUserDropdown(false);
       }
     };
+
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  // Derive display role from user object
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      addToast({ type: "info", message: "Anda telah keluar" });
+      navigate("/login", { replace: true });
+    }
+  };
+
   let displayRole = "User";
   let hasRoleError = false;
 
@@ -548,7 +647,6 @@ function DashboardShell() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex relative overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
@@ -556,7 +654,6 @@ function DashboardShell() {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
@@ -579,32 +676,36 @@ function DashboardShell() {
           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-2 pb-1 shrink-0">
             Menu Utama
           </p>
+
           {hasPermission("home") && (
-            <button
-              onClick={() => handleTabChange("home")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "home" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("home")}
+              icon={LayoutDashboard}
+              end
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <LayoutDashboard size={20} className="shrink-0" />{" "}
-              <span className="truncate">Dashboard</span>
-            </button>
+              Dashboard
+            </SidebarNavLink>
           )}
+
           {hasPermission("monitoring") && (
-            <button
-              onClick={() => handleTabChange("monitoring")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "monitoring" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("monitoring")}
+              icon={Monitor}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Monitor size={20} className="shrink-0" />{" "}
-              <span className="truncate">Live Monitoring</span>
-            </button>
+              Live Monitoring
+            </SidebarNavLink>
           )}
+
           {hasPermission("history") && (
-            <button
-              onClick={() => handleTabChange("history")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "history" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("history")}
+              icon={AlertTriangle}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <AlertTriangle size={20} className="shrink-0" />{" "}
-              <span className="truncate">Riwayat Insiden</span>
-            </button>
+              Riwayat Insiden
+            </SidebarNavLink>
           )}
 
           {(hasPermission("identities") ||
@@ -614,32 +715,35 @@ function DashboardShell() {
               Manajemen
             </p>
           )}
+
           {hasPermission("identities") && (
-            <button
-              onClick={() => handleTabChange("identities")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "identities" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("identities")}
+              icon={Users}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Users size={20} className="shrink-0" />{" "}
-              <span className="truncate">Identitas Staff</span>
-            </button>
+              Identitas Staff
+            </SidebarNavLink>
           )}
+
           {hasPermission("reports") && (
-            <button
-              onClick={() => handleTabChange("reports")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "reports" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("reports")}
+              icon={FileText}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <FileText size={20} className="shrink-0" />{" "}
-              <span className="truncate">Laporan & Bukti</span>
-            </button>
+              Laporan & Bukti
+            </SidebarNavLink>
           )}
+
           {hasPermission("cameras") && (
-            <button
-              onClick={() => handleTabChange("cameras")}
-              className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "cameras" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+            <SidebarNavLink
+              to={getDashboardPath("cameras")}
+              icon={Camera}
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Camera size={20} className="shrink-0" />{" "}
-              <span className="truncate">Manajemen Kamera</span>
-            </button>
+              Manajemen Kamera
+            </SidebarNavLink>
           )}
 
           {hasPermission("settings") && (
@@ -647,34 +751,30 @@ function DashboardShell() {
               <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold px-3 pt-4 pb-1 shrink-0">
                 Sistem
               </p>
-              <button
-                onClick={() => handleTabChange("settings")}
-                className={`flex items-center gap-3 w-full p-3 rounded-lg transition shrink-0 ${activeTab === "settings" ? "bg-slate-800 text-white" : "hover:bg-slate-800"}`}
+              <SidebarNavLink
+                to={getDashboardPath("settings")}
+                icon={SettingsIcon}
+                onClick={() => setIsMobileMenuOpen(false)}
               >
-                <SettingsIcon size={20} className="shrink-0" />{" "}
-                <span className="truncate">Pengaturan</span>
-              </button>
+                Pengaturan
+              </SidebarNavLink>
             </>
           )}
         </nav>
 
-        {/* Sidebar footer - simplified (moved main user UI to header) */}
         <div className="border-t border-slate-800 px-4 py-3 shrink-0">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-rose-900/20 hover:text-rose-400 transition text-sm text-left"
           >
-            <LogOut size={16} className="shrink-0" />{" "}
+            <LogOut size={16} className="shrink-0" />
             <span className="truncate">Keluar</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-100 min-w-0">
-        {/* ── Top Header Bar ── */}
         <header className="h-12 shrink-0 flex items-center justify-between px-3 lg:px-4 bg-white border-b border-slate-200">
-          {/* Mobile Hamburger & Logo */}
           <div className="flex items-center gap-2 md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -691,18 +791,16 @@ function DashboardShell() {
           </div>
 
           <div className="flex items-center justify-end gap-1.5 ml-auto">
-            {/* Notification Bell */}
             <div className="relative" data-dropdown>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNotifDropdown((v) => !v);
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowNotifDropdown((value) => !value);
                   setShowUserDropdown(false);
                 }}
                 className="relative flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
               >
                 <Bell size={16} />
-                {/* Unread badge — only shows when there are unread notifications */}
                 {unreadCount > 0 && (
                   <span className="absolute top-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white ring-[1.5px] ring-white">
                     {unreadCount > 9 ? "9+" : unreadCount}
@@ -710,22 +808,16 @@ function DashboardShell() {
                 )}
               </button>
 
-              {/* Real-time notification dropdown */}
-              <NotificationDropdown
-                isOpen={showNotifDropdown}
-                onNavigate={handleTabChange}
-              />
+              <NotificationDropdown isOpen={showNotifDropdown} />
             </div>
 
-            {/* Divider */}
             <div className="h-5 w-px bg-slate-200" />
 
-            {/* User Profile */}
             <div className="relative" data-dropdown>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowUserDropdown((v) => !v);
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowUserDropdown((value) => !value);
                   setShowNotifDropdown(false);
                 }}
                 className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors"
@@ -749,7 +841,6 @@ function DashboardShell() {
                 />
               </button>
 
-              {/* User dropdown */}
               {showUserDropdown && (
                 <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                   <div className="px-4 py-3 border-b border-slate-100">
@@ -764,7 +855,7 @@ function DashboardShell() {
                   </div>
                   <button
                     onClick={() => {
-                      setActiveTab("profile");
+                      navigate(getDashboardPath("profile"));
                       setShowUserDropdown(false);
                     }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
@@ -774,7 +865,7 @@ function DashboardShell() {
                   {hasPermission("settings") && (
                     <button
                       onClick={() => {
-                        setActiveTab("settings");
+                        navigate(getDashboardPath("settings"));
                         setShowUserDropdown(false);
                       }}
                       className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
@@ -797,80 +888,128 @@ function DashboardShell() {
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {activeTab === "home" && (
-            <DashboardHomeTab
-              onTabChange={setActiveTab}
-              hasPermission={hasPermission}
-            />
-          )}
-          {activeTab === "monitoring" && <Monitoring currentUser={user} />}
-          {activeTab === "history" && <HistoryPage />}
-          {activeTab === "identities" && <Identities />}
-          {activeTab === "reports" && <Reports />}
-          {activeTab === "cameras" && <CameraManagementPage />}
-          {activeTab === "settings" && <SettingsPage />}
-          {activeTab === "profile" && <ProfilePage />}
+          <Outlet />
         </div>
       </main>
     </div>
   );
 }
 
-// ─── App Content (Auth Gate) ────────────────────────────────
-function AppContent() {
-  const { user, loading } = useAuth();
-  const [showLanding, setShowLanding] = useState(true);
-  const [authView, setAuthView] = useState("login"); // "login" | "signup" | "forgot_password"
+function MonitoringRoute() {
+  const { user } = useAuth();
 
-  // Sync showLanding state: if user is logged in, we skip landing page from now on
-  useEffect(() => {
-    if (user) {
-      setShowLanding(false);
-    }
-  }, [user]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <LoadingSpinner message="Memverifikasi sesi..." />
-      </div>
-    );
-  }
-
-  // Show Landing Page only if showLanding is true AND user is not logged in
-  if (showLanding && !user) {
-    return (
-      <LandingPage
-        onEnterApp={() => {
-          // Set flag to skip auto-login if they manually enter from landing
-          sessionStorage.setItem("skipAutoLogin", "true");
-          setShowLanding(false);
-        }}
-      />
-    );
-  }
-
-  // If already logged in, go to dashboard
-  if (user) {
-    return <DashboardShell />;
-  }
-
-  // Authentication routing for unauthenticated users
-  if (authView === "signup") {
-    return <SignUpPage onSwitchView={setAuthView} />;
-  }
-
-  if (authView === "forgot_password") {
-    return <ForgotPasswordPage onSwitchView={setAuthView} />;
-  }
-
-  // Default: show login page (handles logout transition too)
-  return <LoginPage onSwitchView={setAuthView} />;
+  return <Monitoring currentUser={user} />;
 }
 
-// ─── Root App with Providers ────────────────────────────────
+function AppContent() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingOrLoginRedirect />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <PublicOnlyRoute>
+            <SignUpPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicOnlyRoute>
+            <ForgotPasswordPage />
+          </PublicOnlyRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <ProtectedRoute permission="home">
+              <DashboardHomeTab />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="monitoring"
+          element={
+            <ProtectedRoute permission="monitoring">
+              <MonitoringRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="history"
+          element={
+            <ProtectedRoute permission="history">
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="identities"
+          element={
+            <ProtectedRoute permission="identities">
+              <Identities />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute permission="reports">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="cameras"
+          element={
+            <ProtectedRoute permission="cameras">
+              <CameraManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute permission="settings">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="profile"
+          element={
+            <ProtectedRoute permission="profile">
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      <Route path="*" element={<NotFoundRedirect />} />
+    </Routes>
+  );
+}
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>

@@ -47,6 +47,11 @@
 | **Auth: Session Timeout Guard**   | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — `getSession()` wrapped in 5s `Promise.race` timeout       |
 | **Auth: Logout GoTrue Reset**     | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — `window.location.reload()` setelah logout bersihkan queue |
 | **Auth: StrictMode Loading Fix**  | Frontend  | ✅ Complete | Mar 29   | `AuthContext.jsx` — Hapus `initDone` ref, always call `setLoading(false)`     |
+| **Data Stability Plan**           | Tech Lead | ✅ Complete | Mar 30   | `cross-functional/2026-03-30_TIMEOUT_STABILITY_IMPLEMENTATION_UPDATE.md`      |
+| **Frontend Degraded Fallback**    | Frontend  | ✅ Complete | Mar 30   | History/Reports/Dashboard pakai stale cache + banner degraded                 |
+| **Frontend Data Telemetry**       | Frontend  | ✅ Complete | Mar 30   | `dataAccessTelemetry.js` — cache hit, success, degraded, error                |
+| **Backend Events Feed API**       | Backend   | ✅ Complete | Mar 30   | `/api/events/feed` + `/api/events/stats` auth-protected, tenant-aware         |
+| **Backend Read Path Fallback**    | Backend   | ✅ Complete | Mar 30   | Frontend coba backend feed dulu, fallback ke Supabase langsung                |
 
 ---
 
@@ -71,18 +76,20 @@
 
 ### 2. Backend Layer
 
-| Component                   | Status      | Progress | Notes                                                       |
-| --------------------------- | ----------- | -------- | ----------------------------------------------------------- |
-| V2_Project compatibility    | ✅ Complete | 100%     | Monolith refactored                                         |
-| Supabase client integration | ✅ Complete | 100%     | Client + sync modules                                       |
-| Auth middleware             | ✅ Complete | 100%     | JWT validation added                                        |
-| API endpoints (REST)        | ✅ Complete | 100%     | Extracted to Blueprints                                     |
-| WebSocket (Socket.IO)       | ✅ Complete | 100%     | Handlers modularized                                        |
-| Event storage to DB         | ✅ Complete | 100%     | Publisher implemented                                       |
-| **Structured Folder**       | ✅ Complete | 100%     | engine/, server/, configs/, docs/                           |
-| **Developer Docs**          | ✅ Complete | 100%     | docs/PROJECT_STRUCTURE.md                                   |
-| **WS Keepalive Ping**       | ✅ Complete | 100%     | `_broadcast_keepalive` 30s thread — prevent CF idle timeout |
-| **Supabase Dual-Write**     | ✅ Complete | 100%     | `supabase/publisher.py` — stats + detection_state ke DB     |
+| Component                   | Status      | Progress | Notes                                                         |
+| --------------------------- | ----------- | -------- | ------------------------------------------------------------- |
+| V2_Project compatibility    | ✅ Complete | 100%     | Monolith refactored                                           |
+| Supabase client integration | ✅ Complete | 100%     | Client + sync modules                                         |
+| Auth middleware             | ✅ Complete | 100%     | JWT validation added                                          |
+| API endpoints (REST)        | ✅ Complete | 100%     | Extracted to Blueprints                                       |
+| WebSocket (Socket.IO)       | ✅ Complete | 100%     | Handlers modularized                                          |
+| Event storage to DB         | ✅ Complete | 100%     | Publisher implemented                                         |
+| **Structured Folder**       | ✅ Complete | 100%     | engine/, server/, configs/, docs/                             |
+| **Developer Docs**          | ✅ Complete | 100%     | docs/PROJECT_STRUCTURE.md                                     |
+| **WS Keepalive Ping**       | ✅ Complete | 100%     | `_broadcast_keepalive` 30s thread — prevent CF idle timeout   |
+| **Supabase Dual-Write**     | ✅ Complete | 100%     | `supabase/publisher.py` — stats + detection_state ke DB       |
+| **Events Feed API**         | ✅ Complete | 100%     | `/api/events/feed` + `/api/events/stats`, auth + tenant scope |
+| **Backend Query Logging**   | ✅ Complete | 100%     | Request ID + latency/error logging untuk jalur event feed     |
 
 **Overall Backend**: 100% ✅
 
@@ -111,6 +118,9 @@
 | **WebSocket Transport**       | ✅ Complete | 100%     | Polling-first transport for Cloudflare proxy                        |
 | **Supabase-First Monitoring** | ✅ Complete | 100%     | `useMonitoringRealtime` — engine_status, stats, events via Realtime |
 | **WS hanya untuk emit**       | ✅ Complete | 100%     | Socket.IO dipertahankan hanya untuk engine_command                  |
+| **Degraded Data Fallback**    | ✅ Complete | 100%     | Cache fallback untuk History, Reports, Dashboard                    |
+| **Data Access Telemetry**     | ✅ Complete | 100%     | Event fetch observability untuk timeout/degraded/error              |
+| **Backend Feed Integration**  | ✅ Complete | 100%     | History/Reports coba backend dulu sebelum fallback ke Supabase      |
 
 **Overall Frontend**: 100% ✅
 

@@ -250,8 +250,6 @@ export function AuthProvider({ children }) {
         });
         if (error) throw error;
 
-        // Clear skip auto-login flag after successful login
-        sessionStorage.removeItem("skipAutoLogin");
         setUser(data.user);
         const prof = await loadProfile(data.user);
         return prof;
@@ -263,11 +261,10 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    // 1. Clear local state immediately
-    sessionStorage.removeItem("skipAutoLogin");
+    setUser(null);
+    setProfile(null);
     await clearClientCache();
 
-    // 2. Sign out globally with a timeout to prevent GoTrue queue deadlock.
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: "global" }),
@@ -288,32 +285,31 @@ export function AuthProvider({ children }) {
         /* ignore */
       }
     }
-
-    // 3. Hard reload to fully reset GoTrue's internal request queue.
-    //    Without this, signInWithPassword on the next login can hang
-    //    because the GoTrue client retains stale pending state.
-    window.location.reload();
   }, []);
 
   /**
    * Get the merged user object (auth user + profile data).
    * This is what pages receive as "user".
    */
-  const currentUser = profile
+  const currentUser = user
     ? {
-        id: profile.id,
-        email: user?.email,
-        username: profile.username || profile.email || user?.email,
-        name: profile.name || profile.username,
-        role: profile.role || null,
-        _profileError: profile._profileError || false,
-        role_label: profile.role_label,
-        tenant_id: profile.tenant_id,
-        avatar_url: profile.avatar_url,
-        phone: profile.phone,
-        is_active: profile.is_active,
-        last_login: profile.last_login,
-        created_at: profile.created_at,
+        id: profile?.id || user.id,
+        email: user.email,
+        username: profile?.username || profile?.email || user.email,
+        name:
+          profile?.name ||
+          profile?.username ||
+          user.email?.split("@")[0] ||
+          "User",
+        role: profile?.role || null,
+        _profileError: profile?._profileError || false,
+        role_label: profile?.role_label,
+        tenant_id: profile?.tenant_id || null,
+        avatar_url: profile?.avatar_url,
+        phone: profile?.phone,
+        is_active: profile?.is_active,
+        last_login: profile?.last_login,
+        created_at: profile?.created_at || user.created_at,
       }
     : null;
 

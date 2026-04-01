@@ -127,6 +127,26 @@
   - **Completed**: Mar 25
   - **Notes**: Fixed undefined `photoUrls` and added `has_photo` filter
 
+- [x] ✅ Frontend Degraded Cache Fallback
+  - **Owner**: Frontend Developer
+  - **Completed**: Mar 30
+  - **Notes**: History, Reports, dan Dashboard tetap menampilkan data terakhir saat timeout
+
+- [x] ✅ Frontend Data Access Telemetry
+  - **Owner**: Frontend Developer
+  - **Completed**: Mar 30
+  - **Notes**: Tambah logging cache hit, success, degraded, dan error untuk fetch data
+
+- [x] ✅ Backend Events Feed & Stats API
+  - **Owner**: Backend Developer
+  - **Completed**: Mar 30
+  - **Notes**: Tambah `/api/events/feed` dan `/api/events/stats` dengan auth + tenant scope
+
+- [x] ✅ Frontend → Backend Feed Fallback Integration
+  - **Owner**: Backend Developer
+  - **Completed**: Mar 30
+  - **Notes**: Frontend mencoba backend feed dulu, lalu fallback ke Supabase langsung
+
 ---
 
 ## 🟡 P1 - High Priority (Defense Plan Complete)
@@ -147,6 +167,16 @@
   - **Owner**: Database Engineer
   - **Due**: Apr 10
   - **Strategy**: Partition by month for performance
+
+- [ ] ⬜ Add targeted indexes for heavy history/report queries
+  - **Owner**: Database Engineer
+  - **Due**: Apr 7
+  - **Scope**: `tenant_id`, `timestamp`, `status`, `photo_path`, dan search path utama
+
+- [ ] ⬜ Design read model for history and reports
+  - **Owner**: Database Engineer
+  - **Due**: Apr 12
+  - **Scope**: projection table/materialized read path untuk history & reports
 
 ### Backend
 
@@ -174,6 +204,16 @@
   - **Owner**: Backend Developer
   - **Due**: Apr 22
   - **Endpoints**: GET/POST/PUT/DELETE `/api/cameras/*`
+
+- [ ] ⬜ Migrate dashboard summary reads to backend aggregation API
+  - **Owner**: Backend Developer
+  - **Due**: Apr 9
+  - **Goal**: Kurangi query agregasi berat dari browser ke Supabase langsung
+
+- [ ] ⬜ Add backend metrics & alert hooks for event feed timeout
+  - **Owner**: Backend Developer
+  - **Due**: Apr 11
+  - **Scope**: latency, timeout rate, degraded mode counters, request IDs
 
 ### Frontend
 
@@ -207,6 +247,11 @@
   - **Owner**: Frontend Developer
   - **Due**: Apr 28
   - **Features**: Subscribe/unsubscribe per camera room
+
+- [ ] ⬜ Switch history and reports fully to backend feed contract
+  - **Owner**: Frontend Developer
+  - **Due**: Apr 8
+  - **Goal**: Jadikan backend feed sebagai jalur utama, Supabase direct hanya fallback
 
 ### DevOps
 

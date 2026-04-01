@@ -154,6 +154,7 @@ export default function History() {
   // Map API fields to UI fields (handle both local and API naming)
   const filteredIncidents = rawEvents.map((e) => ({
     id: e.id,
+    detectionId: e.id,
     waktu: (() => {
       // Re-implemented inline formating since formatWITA was removed accidentally,
       // but standard formats work locally anyway via direct Date API to mirror what we want.
@@ -366,6 +367,12 @@ export default function History() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                  No
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                  Detection ID
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
                   Waktu
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
@@ -389,12 +396,18 @@ export default function History() {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {paginatedIncidents.length > 0 ? (
-                paginatedIncidents.map((incident) => (
+                paginatedIncidents.map((incident, index) => (
                   <tr
                     key={incident.id}
                     onClick={() => handleRowClick(incident)}
                     className="hover:bg-slate-50 cursor-pointer transition-colors"
                   >
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-900 font-mono">
+                      {incident.detectionId}
+                    </td>
                     <td className="px-6 py-4 text-sm text-slate-900">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-slate-400" />
@@ -449,7 +462,7 @@ export default function History() {
               ) : (
                 <tr>
                   <td
-                    colSpan={faceRecognitionEnabled ? 6 : 5}
+                    colSpan={faceRecognitionEnabled ? 8 : 7}
                     className="px-6 py-8 text-center text-slate-600"
                   >
                     <p className="text-sm">
@@ -516,6 +529,14 @@ export default function History() {
             <div className="p-6 space-y-6">
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Detection ID
+                  </p>
+                  <p className="text-sm text-slate-900 mt-1 font-mono break-all">
+                    {selectedIncident.detectionId}
+                  </p>
+                </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Waktu

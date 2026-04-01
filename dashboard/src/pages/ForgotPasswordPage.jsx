@@ -11,6 +11,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useNavigate } from "react-router-dom";
 import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { useToast } from "../components/ui/Toast";
@@ -20,10 +21,11 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Format email tidak valid"),
 });
 
-export default function ForgotPasswordPage({ onSwitchView }) {
+export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const { addToast } = useToast();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -110,7 +112,7 @@ export default function ForgotPasswordPage({ onSwitchView }) {
       {/* ── Right panel: forgot password ── */}
       <div className="flex items-center justify-center p-6 lg:p-10 relative">
         <button
-          onClick={() => onSwitchView("login")}
+          onClick={() => navigate("/login")}
           className="absolute top-6 left-6 lg:top-10 lg:left-10 flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" /> Kembali ke Login
@@ -198,7 +200,7 @@ export default function ForgotPasswordPage({ onSwitchView }) {
                   folder spam.
                 </p>
                 <Button
-                  onClick={() => onSwitchView("login")}
+                  onClick={() => navigate("/login")}
                   variant="outline"
                   className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl"
                 >
