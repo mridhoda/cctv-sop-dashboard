@@ -369,8 +369,10 @@ export default function Monitoring({ currentUser }) {
   const [selectedCam, setSelectedCam] = useState(cameras[0]);
   const [isEngineExpanded, setIsEngineExpanded] = useState(false);
   const [engineStatus, setEngineStatus] = useState("running");
+  const [redisStatus, setRedisStatus] = useState("offline");
   const [isLoading, setIsLoading] = useState(false);
   const [streamStatus, setStreamStatus] = useState("offline");
+
   const {
     qualities,
     selectedQuality,
@@ -476,6 +478,8 @@ export default function Monitoring({ currentUser }) {
         const data = await res.json();
         if (!isMounted) return;
         setEngineStatus(data.engine_status || engineStatus);
+        setRedisStatus(data.redis_status || "offline");
+
       } catch (err) {
         console.error("[Monitoring] Status fetch error:", err);
       }
@@ -581,7 +585,24 @@ export default function Monitoring({ currentUser }) {
                     {streamStatus === "live" ? "Live" : "Offline"}
                   </span>
                 </div>
+                {/* Redis/Cache Status Badge */}
                 <div className="flex items-center space-x-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <span className="text-[10px] font-semibold uppercase text-slate-400">
+                    Cache
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-bold",
+                      redisStatus === "online"
+                        ? "text-cyan-500"
+                        : "text-slate-400",
+                    )}
+                  >
+                    {redisStatus === "online" ? "Active" : "Offline"}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5">
+
                   <span className="text-[10px] font-semibold uppercase text-slate-400">
                     Violations
                   </span>
