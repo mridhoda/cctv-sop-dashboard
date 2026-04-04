@@ -6,14 +6,14 @@ import * as Sentry from "@sentry/react";
 import App from "./App.jsx";
 import "./index.css";
 
-// Inisialisasi Sentry — hanya aktif jika DSN tersedia & di production
+// Inisialisasi Sentry — hanya aktif jika DSN tersedia
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,   // "development" | "production"
-    enabled: import.meta.env.PROD,       // Tidak kirim error saat dev
-    tracesSampleRate: 0.2,               // Sampling 20% untuk performance trace
-    replaysOnErrorSampleRate: 0.5,       // Rekam 50% session yang crash
+    environment: import.meta.env.MODE,          // "development" | "production"
+    enabled: !!import.meta.env.VITE_SENTRY_DSN, // Aktif selama DSN ada
+    tracesSampleRate: 0.2,
+    replaysOnErrorSampleRate: 0.5,
   });
 }
 
