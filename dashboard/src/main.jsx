@@ -16,7 +16,11 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     tracesSampleRate: 0.2,
     replaysOnErrorSampleRate: 0.5,
   });
+
+  // Expose ke window untuk memudahkan debugging dari browser console
+  window.Sentry = Sentry;
 }
+
 
 
 ReactDOM.createRoot(document.getElementById("root")).render(
