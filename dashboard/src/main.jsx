@@ -12,10 +12,12 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.MODE,          // "development" | "production"
     enabled: !!import.meta.env.VITE_SENTRY_DSN, // Aktif selama DSN ada
+    sendDefaultPii: true,                        // Kirim IP & user info ke Sentry
     tracesSampleRate: 0.2,
     replaysOnErrorSampleRate: 0.5,
   });
 }
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
