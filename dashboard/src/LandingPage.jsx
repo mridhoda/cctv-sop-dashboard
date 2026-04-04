@@ -515,9 +515,9 @@ const DetectionCapabilities = () => {
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-200 rounded-md overflow-hidden relative">
                         <img
-                          src={`https://images.unsplash.com/photo-${1581091226000 + i}?auto=format&fit=crop&w=100&q=60`}
-                          alt="thumb"
-                          className="w-full h-full object-cover opacity-80"
+                          src={`https://i.pravatar.cc/100?img=${i + 11}`}
+                          alt={`Worker ${403 + i}`}
+                          className="w-full h-full object-cover opacity-90"
                         />
                       </div>
                       <div>

@@ -141,8 +141,8 @@ export default function LoginPage() {
           </div>
         </motion.div>
 
-        <div className="text-sm text-slate-500">
-          Background #f1f5f9 • Card #ffffff • Sidebar #0f172a
+        <div className="text-sm text-slate-400">
+          © {new Date().getFullYear()} Foodinesia · VisionGuard AI. Seluruh hak cipta dilindungi.
         </div>
       </div>
 
@@ -267,16 +267,6 @@ export default function LoginPage() {
               >
                 Daftar di sini
               </Link>
-            </p>
-          </div>
-
-          {/* Demo info */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-center text-xs font-medium uppercase tracking-wider text-slate-400">
-              Informasi Login
-            </p>
-            <p className="mt-2 text-center text-sm text-slate-500">
-              Gunakan email dan password yang terdaftar di Supabase Auth.
             </p>
           </div>
         </motion.div>
