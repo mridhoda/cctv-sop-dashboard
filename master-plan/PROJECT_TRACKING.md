@@ -314,6 +314,10 @@ Velocity: 8 tasks/sprint ✅
 
 ## ✅ Recent Completed Tasks
 
+| 2026-04-03 | **Stabilisasi Redis: Server-side Caching** | Backend | Implementasi Redis layer: Profile Cache (5m), Stats Cache (30s fresh/15m stale fallback), Feed Cache (30s). Eliminasi DB timeout. |
+| 2026-04-03 | **Stabilisasi Redis: Rate Limiting** | Backend | Proteksi endpoint `/api/events/feed` & `/api/events/stats` dengan Redis-based rate limiting (30 req/min) untuk cegah abuse. |
+| 2026-04-03 | **Frontend: Redis Health Indicator** | Frontend | Penambahan indikator visual "Cache: Active" di Monitoring dashboard via polling `/api/status`. |
+| 2026-04-03 | **Deployment: Vercel Production Update** | Frontend | Build & Deploy terbaru ke `visionguards-beta.vercel.app` mencakup sinkronisasi UI Redis & Router migration fixes. |
 | 2026-03-29 | **Bugfix: Auth Loading Stuck (StrictMode)** | Frontend | `AuthContext.jsx` — Root cause fix: `initDone` ref + StrictMode = `setLoading(false)` tidak pernah terpanggil. Fix: hapus `initDone` guard, ubah `if (mounted) setLoading(false)` → `setLoading(false)` di `finally`. |
 | 2026-03-29 | **Bugfix: Auth GoTrue Queue Deadlock** | Frontend | `AuthContext.jsx` — `window.location.reload()` setelah logout untuk reset seluruh GoTrue client state. Mencegah `signInWithPassword` hang pada login ke-2 setelah logout. |
 | 2026-03-29 | **Bugfix: getSession Infinite Hang** | Frontend | `AuthContext.jsx` — `getSession()` di-wrap dalam `Promise.race` dengan 5s timeout agar "Memverifikasi sesi..." tidak stuck selamanya saat network lambat. |
