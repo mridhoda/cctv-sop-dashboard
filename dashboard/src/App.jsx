@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  ExternalLink,
   FileText,
   Gauge,
   LayoutDashboard,
@@ -19,7 +20,6 @@ import {
   Siren,
   User,
   Users,
-  Video,
   X,
 } from "lucide-react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -49,6 +49,7 @@ import { useDashboardRealtime } from "./hooks/useDashboardRealtime";
 import { useFaceRecognition } from "./hooks/useFaceRecognition";
 import { useRealtimeEvents } from "./hooks/useRealtimeEvents";
 import RefreshButton from "./components/ui/RefreshButton";
+import { getPhotoUrl } from "./lib/storage";
 import LandingPage from "./LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
@@ -471,100 +472,165 @@ function DashboardHomeTab() {
 
       {selectedIncident && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <h3 className="text-xl font-bold text-slate-900">
-                Rincian Pelanggaran
-              </h3>
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="bg-rose-100 text-rose-700 p-1.5 rounded-lg">
+                  <AlertTriangle size={14} />
+                </span>
+                <h3 className="text-base font-bold text-slate-900">Rincian Pelanggaran</h3>
+              </div>
               <button
                 onClick={() => setSelectedIncident(null)}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition"
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition"
               >
-                <X size={24} />
+                <X size={18} />
               </button>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="bg-slate-100 aspect-video rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-slate-300 group">
-                  <Video
-                    className="text-slate-400 group-hover:scale-110 transition mb-2"
-                    size={48}
+
+            {/* Photo Evidence */}
+            <div className="bg-slate-900 aspect-video flex items-center justify-center relative overflow-hidden">
+              {(() => {
+                const photoUrl = getPhotoUrl(
+                  "event-evidence",
+                  selectedIncident.photo_path ||
+                    selectedIncident.foto ||
+                    selectedIncident.photo_url ||
+                    null,
+                );
+                return photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt="Bukti pelanggaran"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
                   />
-                  <p className="text-slate-500 text-xs font-medium">
-                    Rekaman Bukti AI
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-3 rounded-lg">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">
-                      Waktu Kejadian
-                    </p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {selectedIncident.time ||
-                        selectedIncident.timestamp ||
-                        "—"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">
-                      Lokasi Kamera
-                    </p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {selectedIncident.location ||
-                        selectedIncident.camera_name ||
-                        "—"}
-                    </p>
-                  </div>
-                </div>
+                ) : null;
+              })()}
+              {/* Fallback placeholder — hidden when photo loads */}
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500"
+                style={{
+                  display:
+                    getPhotoUrl(
+                      "event-evidence",
+                      selectedIncident.photo_path ||
+                        selectedIncident.foto ||
+                        selectedIncident.photo_url ||
+                        null,
+                    )
+                      ? "none"
+                      : "flex",
+                }}
+              >
+                <Camera size={40} className="text-slate-600" />
+                <p className="text-xs text-slate-500">Foto bukti tidak tersedia</p>
               </div>
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    Jenis Deteksi
-                  </h4>
-                  <span className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-sm font-bold inline-block border border-rose-200">
-                    {selectedIncident.type ||
-                      selectedIncident.event_type ||
-                      selectedIncident.name ||
-                      "—"}
+              {/* Timestamp + Detection ID overlay */}
+              <div className="absolute bottom-3 left-3 flex flex-col gap-1">
+                <span className="bg-black/60 text-slate-300 text-[9px] px-2 py-0.5 rounded font-mono backdrop-blur-sm flex items-center gap-1.5">
+                  ID:&nbsp;
+                  <span className="text-white font-bold tracking-wider">
+                    {String(
+                      selectedIncident.detection_id ||
+                        selectedIncident.detectionId ||
+                        selectedIncident.event_id ||
+                        selectedIncident.id ||
+                        "—",
+                    ).toUpperCase()}
                   </span>
-                </div>
-                {faceRecognitionEnabled && (
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      Nama Staff
-                    </h4>
-                    <p className="text-sm font-semibold text-slate-800 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                </span>
+                <span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-md font-mono backdrop-blur-sm flex items-center gap-1.5">
+                  <Clock size={10} />
+                  {(() => {
+                    // Prioritas: timestamp (ISO penuh) → time (sudah diformat, hanya jam)
+                    const isoRaw = selectedIncident.timestamp ?? null;
+                    if (isoRaw) {
+                      try {
+                        const d = new Date(isoRaw);
+                        if (!isNaN(d.getTime())) {
+                          return new Intl.DateTimeFormat("id-ID", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: false,
+                            timeZone: "Asia/Makassar",
+                          }).format(d);
+                        }
+                      } catch {
+                        /* fallthrough */
+                      }
+                    }
+                    return selectedIncident.time || "—";
+                  })()}
+                </span>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              {/* Status + Type row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="bg-rose-100 text-rose-700 border border-rose-200 px-3 py-1 rounded-full text-xs font-bold">
+                  {selectedIncident.type ||
+                    selectedIncident.event_type ||
+                    selectedIncident.name ||
+                    "—"}
+                </span>
+                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                  <MapPin size={10} />
+                  {selectedIncident.location || selectedIncident.camera_name || "—"}
+                </span>
+                {faceRecognitionEnabled &&
+                  (selectedIncident.staff_name ||
+                    selectedIncident.person_name ||
+                    selectedIncident.identity_name) && (
+                    <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                      <User size={10} />
                       {selectedIncident.staff_name ||
                         selectedIncident.person_name ||
-                        selectedIncident.identity_name ||
-                        "Tidak teridentifikasi"}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        selectedIncident.identity_name}
+                    </span>
+                  )}
+              </div>
+
+              {/* AI Analysis */}
+              {(selectedIncident.detail || selectedIncident.description) && (
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
                     Analisis AI
-                  </h4>
-                  <p className="text-slate-700 leading-relaxed text-sm bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
-                    "
-                    {selectedIncident.detail ||
-                      selectedIncident.description ||
-                      "Tidak ada deskripsi"}
-                    "
+                  </p>
+                  <p className="text-sm text-slate-700 leading-relaxed italic">
+                    &ldquo;{selectedIncident.detail || selectedIncident.description}&rdquo;
                   </p>
                 </div>
-                <div className="pt-4 flex gap-3">
-                  <button className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-800 transition">
-                    Validasi Insiden
-                  </button>
-                  <button
-                    onClick={() => setSelectedIncident(null)}
-                    className="px-4 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition"
-                  >
-                    Abaikan
-                  </button>
-                </div>
+              )}
+
+              {/* Footer actions */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  onClick={() => setSelectedIncident(null)}
+                  className="text-sm text-slate-500 hover:text-slate-700 transition"
+                >
+                  Tutup
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedIncident(null);
+                    navigate("/dashboard/history");
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl transition"
+                >
+                  <ExternalLink size={14} />
+                  Lihat Detail
+                </button>
               </div>
             </div>
           </div>

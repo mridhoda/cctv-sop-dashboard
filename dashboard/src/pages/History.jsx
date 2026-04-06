@@ -88,7 +88,8 @@ export default function History() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [period, setPeriod] = useState("hari_ini");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");   // raw input — updates instantly
+  const [debouncedSearch, setDebouncedSearch] = useState(""); // debounced — sent to hook
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -96,6 +97,15 @@ export default function History() {
   const { enabled: faceRecognitionEnabled } = useFaceRecognition();
 
   const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
+  // Debounce search: only fire query after user stops typing for 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // reset to page 1 on new search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Load photo URL when selected incident changes
   useEffect(() => {
@@ -131,7 +141,7 @@ export default function History() {
         : statusFilter === "Valid"
           ? "valid"
           : undefined,
-    search: searchQuery || undefined,
+    search: debouncedSearch || undefined,
     date_from,
     date_to,
     includeStats: false,

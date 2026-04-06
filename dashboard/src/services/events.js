@@ -116,7 +116,7 @@ export async function fetchEvents(params = {}) {
     .from("events")
     .select(
       `
-      id, timestamp, location, status, violation_type,
+      id, id_text, timestamp, location, status, violation_type,
       missing_sops, confidence_person, confidence_sop,
       staff_name, photo_path, ai_description, track_id,
       is_reviewed, review_notes, detection_type,
@@ -132,7 +132,20 @@ export async function fetchEvents(params = {}) {
   if (date_from) query = query.gte("timestamp", date_from);
   if (date_to) query = query.lte("timestamp", date_to);
   if (has_photo) query = query.not("photo_path", "is", null);
-  if (search) query = query.textSearch("search_vector", search);
+  if (search) {
+    const trimmed = search.trim();
+    const like = `%${trimmed}%`;
+    // id_text is a GENERATED ALWAYS AS (id::text) STORED column — safe to ILIKE
+    query = query.or(
+      [
+        `id_text.ilike.${like}`,
+        `staff_name.ilike.${like}`,
+        `location.ilike.${like}`,
+        `violation_type.ilike.${like}`,
+        `ai_description.ilike.${like}`,
+      ].join(","),
+    );
+  }
 
   try {
     const { data, error, count } = await query.abortSignal(controller.signal);

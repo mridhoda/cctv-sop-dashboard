@@ -354,13 +354,18 @@ export default function CameraManagementPage() {
           >
             <RefreshCw size={16} />
           </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition shadow-sm"
-          >
-            <Plus size={16} />
-            Tambah Kamera
-          </button>
+          <div className="relative">
+            <button
+              disabled
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-900/30 text-slate-900/30 rounded-xl text-sm font-bold cursor-not-allowed select-none border border-slate-900/10"
+            >
+              <Plus size={16} />
+              Tambah Kamera
+            </button>
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none">
+              Coming Soon
+            </span>
+          </div>
         </div>
       </div>
 
@@ -456,13 +461,18 @@ export default function CameraManagementPage() {
               : "Coba ubah kata kunci pencarian atau filter status."}
           </p>
           {cameras.length === 0 && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition"
-            >
-              <Plus size={15} />
-              Tambah Kamera
-            </button>
+            <div className="relative mt-5">
+              <button
+                disabled
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900/30 text-slate-900/30 rounded-xl text-sm font-bold cursor-not-allowed select-none border border-slate-900/10"
+              >
+                <Plus size={15} />
+                Tambah Kamera
+              </button>
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none">
+                Coming Soon
+              </span>
+            </div>
           )}
         </div>
       ) : (

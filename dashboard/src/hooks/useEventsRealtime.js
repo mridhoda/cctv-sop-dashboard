@@ -38,13 +38,13 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_STATS = { total: 0, violations: 0, valid: 0 };
 const EVENT_SELECTS = {
   history: `
-      id, timestamp, location, status, violation_type,
+      id, id_text, timestamp, location, status, violation_type,
       staff_name, photo_path, ai_description,
       is_reviewed, review_notes,
       cameras(id, name, location)
     `,
   reports: `
-      id, timestamp, location, status, violation_type,
+      id, id_text, timestamp, location, status, violation_type,
       photo_path, ai_description, confidence_person,
       cameras(id, name, location)
     `,
@@ -131,7 +131,21 @@ async function queryEvents({
   if (date_from) query = query.gte("timestamp", date_from);
   if (date_to) query = query.lte("timestamp", date_to);
   if (has_photo) query = query.not("photo_path", "is", null);
-  if (search) query = query.textSearch("search_vector", search);
+  if (search) {
+    const trimmed = search.trim();
+    const like = `%${trimmed}%`;
+    // id_text is the computed id::text column added in EVENT_SELECTS.
+    // This lets PostgREST filter on the text representation of the UUID.
+    query = query.or(
+      [
+        `id_text.ilike.${like}`,
+        `staff_name.ilike.${like}`,
+        `location.ilike.${like}`,
+        `violation_type.ilike.${like}`,
+        `ai_description.ilike.${like}`,
+      ].join(","),
+    );
+  }
 
   const { data, error } = await withTimeout(
     query,
@@ -529,12 +543,26 @@ export function useEventsRealtime(params = {}) {
             };
           });
 
+          // Check if realtime row matches the active search query
+          const matchesSearch = !search ||
+            (search.trim().length > 0 && (() => {
+              const term = search.trim().toLowerCase();
+              return (
+                (newRow.id || "").toLowerCase().includes(term) ||
+                (newRow.staff_name || "").toLowerCase().includes(term) ||
+                (newRow.location || "").toLowerCase().includes(term) ||
+                (newRow.violation_type || "").toLowerCase().includes(term) ||
+                (newRow.ai_description || "").toLowerCase().includes(term)
+              );
+            })());
+
           // Only add to data list if it matches ALL filters and we're on page 1
           if (
             matchesStatus &&
             matchesPhoto &&
             matchesDateFrom &&
-            matchesDateTo
+            matchesDateTo &&
+            matchesSearch
           ) {
             if (page === 1) {
               setEventsData((prev) => {

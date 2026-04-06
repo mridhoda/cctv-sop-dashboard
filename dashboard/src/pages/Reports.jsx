@@ -228,7 +228,7 @@ export default function Reports() {
   return (
     <div className="flex-1 overflow-auto">
       {/* Header with Title and Button */}
-      <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-40">
+      <div className="sticky top-0 bg-slate-100/95 backdrop-blur-md border-b border-slate-200/60 z-40">
         <div className="py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -241,13 +241,18 @@ export default function Reports() {
             </div>
             <div className="flex items-center gap-2">
               <RefreshButton onRefresh={refetch} />
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition"
-              >
-                <Download size={18} />
-                Export CSV
-              </button>
+              <div className="relative">
+                <button
+                  disabled
+                  className="flex items-center gap-2 bg-green-600/30 text-green-800/40 px-4 py-2 rounded-lg font-medium cursor-not-allowed select-none border border-green-600/20"
+                >
+                  <Download size={18} />
+                  Export CSV
+                </button>
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full leading-none">
+                  Coming Soon
+                </span>
+              </div>
             </div>
           </div>
 
