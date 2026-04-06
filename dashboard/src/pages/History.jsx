@@ -646,9 +646,6 @@ export default function History() {
               >
                 Tutup
               </button>
-              <button className="px-4 py-2 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors">
-                Ambil Tindakan
-              </button>
             </div>
           </div>
         </div>
