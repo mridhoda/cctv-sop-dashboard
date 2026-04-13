@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getApiBaseUrl } from "../utils/url";
 
 const API_BASE = getApiBaseUrl();
-const DEFAULT_QUALITY = "720p";
+const DEFAULT_QUALITY = "480p";
 
 /**
  * Hook that fetches available quality tiers from the backend
@@ -29,7 +29,7 @@ export function useStreamQuality() {
         const list = data.qualities ?? [];
         setQualities(list);
 
-        // Pick the server-designated default, or fall back to 720p
+        // Pick the server-designated default, or fall back to 480p
         const defaultTier = list.find((q) => q.default);
         if (defaultTier) setSelectedQuality(defaultTier.key);
       } catch (err) {
@@ -38,7 +38,8 @@ export function useStreamQuality() {
         if (!cancelled) {
           setQualities([
             { key: "360p", label: "360p", default: false },
-            { key: "720p", label: "720p", default: true },
+            { key: "480p", label: "480p", default: true },
+            { key: "720p", label: "720p", default: false },
             { key: "1080p", label: "1080p", default: false },
           ]);
         }
